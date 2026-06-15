@@ -1,0 +1,165 @@
+---
+title: "用 uuid 生成唯一标识"
+description: "用 uuid 生成 v4 随机 UUID、解析与格式化，给实体分配唯一 ID。"
+stage: "ecosystem"
+order: 373
+level: "intermediate"
+estimatedMinutes: 15
+tags: ["生态库", "uuid", "唯一标识"]
+rustConcepts: ["uuid", "v4", "parse", "features"]
+prerequisites: ["37a-rand"]
+exampleDir: "48_uuid"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 用 uuid 生成唯一标识
+
+## 你会学到什么
+
+- UUID 是什么，为什么用它给数据分配唯一 ID。
+- 用 `Uuid::new_v4()` 生成 v4（随机）UUID。
+- 给业务实体（`Entity`）在创建时自动分配一个新鲜 ID。
+- 用 `Uuid::parse_str` 把字符串解析回 `Uuid`。
+- 在带连字符（hyphenated）与无连字符（simple）两种文本形式之间转换。
+- `uuid` 的 `features = ["v4"]` 特性开关是什么、为什么需要它。
+
+## 什么是 UUID
+
+UUID（Universally Unique Identifier）是一个 128 位的标识符，写成文本通常长这样：
+
+```text
+550e8400-e29b-41d4-a716-446655440000
+```
+
+它的卖点是“几乎一定全局唯一”：不需要中心化的自增计数器，任何机器、任何
+时刻独立生成的两个 UUID 撞车的概率都低到可以忽略。这让它特别适合做数据库
+主键、文件名、会话 ID 等。
+
+其中 **v4** 版本的绝大部分位来自随机数（所以也叫“随机 UUID”），这正是上一章
+[`rand`](/tutorials/37a-rand) 那类随机数在实际库里的应用。
+
+## Cargo.toml 与特性开关
+
+```toml
+[dependencies]
+uuid = { version = "1", features = ["v4"] }
+```
+
+`uuid` 把不同功能拆成了**特性（features）**：默认只带最基础的类型，生成 v4
+随机 UUID 的能力要显式打开 `"v4"` 特性才有（它内部依赖随机数实现）。这样
+没用到的功能就不会被编进你的程序，二进制更小、编译更快。如果你还想要别的
+版本（如基于时间的 v7），就再加上对应的特性。
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_48_uuid
+cargo test -p rt_48_uuid
+```
+
+## 代码组织
+
+本章示例按职责拆成多个文件，更贴近真实项目的组织方式：
+
+```text
+48_uuid/
+├── Cargo.toml
+├── README.md
+└── src/
+    ├── lib.rs       # mod 声明 + pub use 重导出 + 库级文档
+    ├── generate.rs  # 生成 UUID：new_id / new_ids / Entity
+    ├── parsing.rs   # 解析字符串与格式化：parse_id / to_simple / to_hyphenated / nil_id
+    └── main.rs      # 瘦入口：use 库里的函数，跑一遍演示
+```
+
+每个模块都带有自己的单元测试（`#[cfg(test)] mod tests`），就近放在它所覆盖的
+代码旁边。
+
+## 代码讲解
+
+### 生成 v4 UUID
+
+核心就一行：
+
+```rust
+use uuid::Uuid;
+
+pub fn new_id() -> Uuid {
+    Uuid::new_v4()
+}
+```
+
+`new_v4()` 每次都返回一个新的随机 UUID。`generate.rs` 在它之上还提供了批量
+生成的 `new_ids(n)`，以及一个 `Entity` 实体——它的 `new` 会在创建时自动分配
+一个 ID，调用方只管给名字：
+
+```rust
+let alice = Entity::new("alice"); // id 自动生成
+```
+
+### 解析字符串
+
+从外部（请求参数、数据库、配置）拿到的 UUID 往往是字符串，用 `parse_str`
+转回 `Uuid`，失败时返回 `Result`：
+
+```rust
+pub fn parse_id(s: &str) -> Result<Uuid, uuid::Error> {
+    Uuid::parse_str(s)
+}
+```
+
+### 两种文本形式
+
+同一个 UUID 有多种文本写法，常用的是带连字符与不带连字符两种：
+
+```rust
+id.hyphenated().to_string() // 550e8400-e29b-41d4-a716-446655440000，长度 36
+id.simple().to_string()     // 550e8400e29b41d4a716446655440000，长度 32
+```
+
+`hyphenated` 是默认形式（也就是 `id.to_string()`），可读性好；`simple` 更紧凑，
+适合放进 URL 或文件名。需要“空 ID”占位时可以用 `Uuid::nil()`，它是全零值。
+
+## 测试里如何应对随机性
+
+`new_v4()` 是随机的，没法断言它“等于某个固定值”，所以测试要断言**性质**而非
+具体取值：
+
+- 版本号是 4（`id.get_version_num() == 4`）；
+- 两次生成的 ID 不相等；
+- 批量生成的若干 ID 互不相同（收进 `HashSet` 看数量）。
+
+而解析相关的测试则用一个**固定字符串**，这样结果是确定的：解析后再格式化能
+还原原串（round-trip）、`simple` 形式长度为 32 且不含 `-`、`nil` 全为零等。
+
+## 常见错误
+
+忘了开 `v4` 特性，编译器会报找不到 `new_v4`：
+
+```text
+error[E0599]: no function or associated item named `new_v4` found for struct `Uuid`
+```
+
+解决办法是在 `Cargo.toml` 里给 `uuid` 加上 `features = ["v4"]`（本章已经加好）。
+
+另一个常见点：`parse_str` 返回的是 `Result`，别忘了处理错误分支，不要直接
+`unwrap` 外部传入的字符串。
+
+## 练习
+
+- 给 `Entity` 加一个 `from_id(id: Uuid, name)` 构造函数，用于从数据库读回已有 ID。
+- 写一个函数，接收一批字符串，返回成功解析出的 `Uuid` 列表（跳过非法项）。
+- 试着把 `simple` 形式再用 `parse_id` 解析回来，验证 `parse_str` 也接受无连字符形式。
+
+## 小结
+
+UUID 让你无需中心协调就能生成几乎一定唯一的标识符。`Uuid::new_v4()` 生成随机
+ID，`parse_str` 解析字符串，`hyphenated`/`simple` 切换文本形式；而 `features`
+开关决定了哪些能力被编进程序。
+
+## 下一步
+
+UUID 解决“唯一标识”，下一章我们用 [`sha2`](/tutorials/37f-sha2) 计算内容的
+哈希摘要，解决“内容指纹与完整性校验”的问题。

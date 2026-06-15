@@ -845,6 +845,34 @@ select {
   font-size: 0.9rem;
 }
 
+.site-footer__inner p {
+  margin: 0;
+}
+
+.site-footer__meta {
+  margin-top: 0.5rem !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.site-footer__inner a {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-footer__inner a:hover {
+  color: hsl(var(--primary));
+}
+
+.site-footer__repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 /* ------------------------------------------------------------------ *
  * Pagefind search UI (tokenized to match the theme)
  * ------------------------------------------------------------------ */

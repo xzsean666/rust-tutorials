@@ -1,0 +1,8 @@
+[package]
+name = "rt_48_uuid"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+uuid = { version = "1", features = ["v4"] }

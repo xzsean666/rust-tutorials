@@ -1,0 +1,150 @@
+---
+title: "用 rayon 做数据并行"
+description: "把迭代器链换成 rayon 的并行迭代器，几乎零改动地利用多核加速。"
+stage: "ecosystem"
+order: 377
+level: "intermediate"
+estimatedMinutes: 20
+tags: ["生态库", "rayon", "并行", "迭代器"]
+rustConcepts: ["rayon", "par_iter", "data parallelism", "work stealing"]
+prerequisites: ["21-iterators", "26-threads"]
+exampleDir: "50_rayon"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 用 rayon 做数据并行
+
+## 你会学到什么
+
+- 数据并行（data parallelism）：同一份运算，分给多个核心同时处理一批数据。
+- rayon 的核心招牌——把 `iter()` 换成 `par_iter()` 就能并行，几乎零改动。
+- 工作窃取（work-stealing）线程池替你完成切片、分发与负载均衡。
+- 为什么并行结果依旧正确：运算是纯函数、归约满足结合律。
+- 并行排序 `par_sort` / `par_sort_unstable`。
+- 什么时候并行划算（CPU 密集、数据量大），什么时候反而更慢（数据太小、开销盖过收益）。
+
+这一章同时建立在[迭代器](/tutorials/21-iterators)和[多线程](/tutorials/26-threads)之上：你已经会写 `map`/`filter`/`sum` 的链式风格，也知道线程能并发跑——rayon 把两者揉在一起，让你「用迭代器的写法，拿到多线程的速度」。
+
+## 核心招牌：iter() -> par_iter() 即可并行
+
+先看顺序版本，一个再普通不过的迭代器链：
+
+```rust
+let total: u64 = nums.iter().map(|&n| n * n).sum();
+```
+
+改成并行，只动一个词：
+
+```rust
+use rayon::prelude::*;
+
+let total: u64 = nums.par_iter().map(|&n| n * n).sum();
+//                    ^^^^^^^^ 只把 iter 换成 par_iter
+```
+
+`map`、`filter`、`sum`、`count`、`reduce` 这些方法名一模一样，链式写法一模一样。背后却天差地别：`par_iter` 返回的是**并行迭代器**，rayon 会把 `nums` 切成若干块，丢进一个全局的工作窃取线程池——空闲的线程会主动「偷」别人还没做完的活，于是各核心都不闲着，调度完全不用你操心，也不必手写 `thread::spawn` 或 channel。
+
+## 为什么结果还是对的
+
+并行改变了**计算顺序**，结果却和顺序版逐位相同。原因有两条，缺一不可：
+
+1. **纯函数**：`map` 里的闭包 `|&n| n * n` 不读写共享可变状态，每个元素独立算，谁先谁后都一样。
+2. **结合律**：`sum`、`count`、`reduce` 这类归约满足结合律，`(a+b)+c == a+(b+c)`。rayon 把数组拆成几段、各自求局部和、再合并总和——和从头加到尾完全等价。
+
+所以测试里可以放心断言**精确值**：平方和、素数个数、排序结果都是确定的，不存在「并行所以结果会抖」。这也是判断「一段迭代器能不能安全并行」的黄金标准：闭包是纯的、归约可结合，就能换 `par_iter`。
+
+> 反例：如果归约不满足结合律（比如浮点求和对舍入顺序敏感），并行结果可能和顺序版有极小差异——这时要么接受，要么换确定性的归约策略。本章的整数运算没有这个问题。
+
+## 文件结构
+
+示例按职责拆成两个模块，方便对照阅读：
+
+```text
+50_rayon/
+├── Cargo.toml            # 声明 rayon = "1"
+└── src/
+    ├── lib.rs            # mod 声明 + pub use 重导出 + 库级文档
+    ├── parallel_map.rs   # 并行 map/filter 与归约：平方和、素数计数
+    ├── sorting.rs        # 并行排序：par_sort_unstable
+    └── main.rs           # 薄壳：调用库函数、打印结果、粗略对比串/并行耗时
+```
+
+`lib.rs` 把函数 `pub use` 出来，`main.rs` 因此能直接 `use rt_50_rayon::par_sum_of_squares;`，感知不到底层用了 rayon。每个模块都带就近的 `#[cfg(test)]` 单元测试。
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_50_rayon
+cargo test -p rt_50_rayon
+```
+
+## 代码讲解
+
+### 并行归约（parallel_map.rs）
+
+`par_sum_of_squares` 就是开头那个例子：`par_iter().map(...).sum()`。测试里既对比了闭式公式 `n(n+1)(2n+1)/6`，也和顺序迭代器逐位比较，确认并行不影响结果。
+
+`par_count_primes` 展示了并行真正擅长的场景——CPU 密集且各任务独立：
+
+```rust
+pub fn par_count_primes(upto: u64) -> usize {
+    (0..upto).into_par_iter().filter(|&n| is_prime(n)).count()
+}
+```
+
+`(0..upto)` 是个区间，`into_par_iter()` 把它变成并行迭代器（区间没有 `par_iter` 的引用版本，按值消费用 `into_par_iter`）。每个数独立做一次试除判素，彼此不共享可变状态，rayon 把区间切片分给各核——这正是数据并行最理想的形态。`filter` + `count` 是可结合归约，所以 `[0, 100)` 永远数出 25 个素数，`[0, 1000)` 永远是 168 个。
+
+### 并行排序（sorting.rs）
+
+排序同样「换名即并行」：
+
+```rust
+pub fn par_sorted(mut v: Vec<i64>) -> Vec<i64> {
+    v.par_sort_unstable(); // 顺序版是 v.sort_unstable()
+    v
+}
+```
+
+`par_sort_unstable` 在切片上**就地**并行排序，内部用并行归并。结果与顺序排序逐位相同，测试里直接和 `let mut s = v.clone(); s.sort();` 对比。
+
+「unstable（不稳定）」指相等元素的相对顺序可能被打乱。对 `i64` 这种纯值没有影响，而且不稳定版通常更快、内存更省。只有当元素是「带 key 的结构体、且要保持同 key 的原始先后」时，才需要换成稳定的 `par_sort`。
+
+## 什么时候并行划算
+
+并行不是免费的：切片、分发、跨线程合并都有开销。一个朴素但管用的判断：
+
+- ✅ **值得并行**：CPU 密集（每个元素的运算不便宜，如判素、哈希、图像像素处理）、且数据量大。开销被摊薄，多核收益明显。
+- ❌ **不值得并行**：数据很小（几十、几百个元素），或每个元素的运算极轻（如简单加法）。此时调度开销可能比计算本身还大，`par_iter` 反而比 `iter` 慢。
+- ⚠️ **并行帮不上忙**：瓶颈在 I/O 或锁等待，而非 CPU。这类「等待型」并发更适合用线程 + channel 或 async，而不是 rayon 的数据并行。
+
+`main.rs` 里对 200 万以内的素数计数做了一次粗略的串/并行计时对比，你能直观看到差距——但注意它**不做断言**，因为加速比取决于机器核数和当时负载，不是确定值。
+
+## 常见错误
+
+忘记导入 prelude：
+
+```rust
+// ❌ 没有 use rayon::prelude::*;
+let s: u64 = nums.par_iter().map(|&n| n * n).sum();
+//                ^^^^^^^^ 方法不存在
+```
+
+`par_iter`、`into_par_iter`、`par_sort` 等都挂在 rayon 的扩展 trait 上，必须 `use rayon::prelude::*;` 才可见——和上一章 `itertools` 同一个套路：`use` 一个 prelude，已有类型凭空多出新方法。
+
+另一个坑是「以为换了 `par_iter` 就一定更快」：小数据上它可能更慢，务必结合上一节判断场景，必要时实测。
+
+## 练习
+
+- 把 `par_count_primes` 改成返回所有素数的 `Vec`（提示：`filter(...).collect()`，并行 `collect` 会自动按原顺序拼接）。
+- 用 `par_iter().map(...).max()` 并行求一组数据里「某个开销不小的指标」的最大值，并和顺序版对拍。
+- 用 `reduce` 自己实现并行求和：`par_iter().copied().reduce(|| 0, |a, b| a + b)`，体会「单位元 + 结合的合并函数」这套接口。
+
+## 小结
+
+rayon 把数据并行变成了迭代器的「同名替换」：`iter()` -> `par_iter()`、`sort()` -> `par_sort()`，工作窃取线程池负责所有调度。只要运算是纯函数、归约可结合，结果就和顺序版完全一致，可以断言精确值。记住「CPU 密集 + 大数据才划算」这条原则，比记住任何单个方法都重要。
+
+## 下一步
+
+到这里，「引用第三方包」这一组就完整收尾了：从声明依赖、`use` 进来，到把第三方能力封装进自己的库模块，这套流程你已经走了一遍又一遍。接下来进入 Web 与数据库实战——先看怎样用 [axum 写一个 Web 服务](/tutorials/38-axum)，再到 [SQLite 做持久化](/tutorials/39-sqlite)。

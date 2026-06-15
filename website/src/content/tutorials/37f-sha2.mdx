@@ -1,0 +1,161 @@
+---
+title: "用 sha2 计算哈希"
+description: "用 sha2 计算 SHA-256/512 摘要，并用 hex 编码与校验数据完整性。"
+stage: "ecosystem"
+order: 375
+level: "intermediate"
+estimatedMinutes: 15
+tags: ["生态库", "sha2", "哈希", "摘要"]
+rustConcepts: ["sha2", "Digest", "hex", "trait"]
+prerequisites: ["37a-rand"]
+exampleDir: "49_sha2"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 用 sha2 计算哈希
+
+## 你会学到什么
+
+- 哈希（hash）是什么：把任意长度的数据映射成固定长度的“摘要”（digest）。
+- 用 `sha2` 的 `Sha256` / `Sha512` 配合 `Digest` trait 计算摘要。
+- 用 `hex::encode` 把二进制摘要转成人类可读的十六进制字符串。
+- 写一个完整性校验函数，对比数据的哈希与给定的期望值。
+- 两条安全红线：哈希**不是**存密码的，校验对比**不是**常数时间的。
+
+## 什么是哈希
+
+哈希函数有两个关键性质：
+
+1. **确定性**：同样的输入，永远得到同样的输出。
+2. **雪崩效应**：输入只要变一个比特，输出就会面目全非。
+
+这让哈希非常适合做**完整性校验 / 校验和（checksum）**。比如你下载一个文件，
+官网同时给出它的 SHA-256 值；把下载到的内容重新算一遍哈希再比对，相同就说明
+文件完整、没被损坏或篡改。
+
+## 最小示例
+
+```rust
+use sha2::{Sha256, Digest};
+
+let mut hasher = Sha256::new();
+hasher.update(b"abc");
+let digest = hasher.finalize();       // 32 字节的二进制摘要
+let hex = hex::encode(digest);        // 转成 64 个十六进制字符
+assert_eq!(hex, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_49_sha2
+cargo test -p rt_49_sha2
+```
+
+## 代码组织
+
+本章示例按职责拆成了多个文件，更贴近真实项目的组织方式：
+
+```text
+49_sha2/
+├── Cargo.toml
+├── README.md
+└── src/
+    ├── lib.rs      # mod 声明 + pub use 重导出 + 库级文档
+    ├── hashing.rs  # sha256_hex / sha256_str / sha512_hex 计算函数
+    ├── verify.rs   # matches 完整性校验函数
+    └── main.rs     # 瘦入口：use 库里的函数，跑一遍演示
+```
+
+每个模块都带有自己的单元测试（`#[cfg(test)] mod tests`），并且因为哈希是
+**完全确定**的，测试里可以直接断言已知的“测试向量”（known test vector）。
+
+## 代码讲解
+
+### 三步走：new / update / finalize
+
+`sha2` 把每种算法做成一个类型，计算流程固定为三步：
+
+1. `Sha256::new()` 创建一个 hasher；
+2. `update(data)` 喂入数据——可以多次调用，等价于把这些数据拼接起来；
+3. `finalize()` 得到固定长度的摘要（SHA-256 是 32 字节）。
+
+`finalize()` 返回的是一个 `GenericArray<u8, _>`（一段定长字节数组），直接交给
+`hex::encode` 就能拿到小写十六进制字符串。SHA-256 的摘要总是 64 个十六进制字符，
+SHA-512 则是 128 个。
+
+`update` 可以分块调用这一点很实用：处理大文件时，你可以一边读一边喂，不必把
+整个文件读进内存。
+
+### `Digest` trait：换算法，代码不变
+
+注意 `sha512_hex` 和 `sha256_hex` 的函数体几乎一字不差，区别只有把 `Sha256`
+换成了 `Sha512`：
+
+```rust
+let mut hasher = Sha512::new();
+hasher.update(data);
+hex::encode(hasher.finalize())
+```
+
+之所以能这样“无痛替换”，是因为 `new` / `update` / `finalize` 都来自同一个
+`Digest` trait。RustCrypto 生态里的一大批哈希 crate（`sha2`、`sha3`、`blake2`
+……）都实现了这个 trait，所以掌握了一种用法，其余的全都会用。这正是 trait
+作为“共享接口”的威力——把通用的调用方式抽出来，让不同实现可以互换。
+
+### 校验完整性：matches
+
+`verify.rs` 里的 `matches` 把数据重新哈希，再和给定的期望值比较：
+
+```rust
+pub fn matches(data: &[u8], expected_hex: &str) -> bool {
+    sha256_hex(data) == expected_hex.to_lowercase()
+}
+```
+
+期望值在不同来源里可能写成大写或小写，所以两边都转成小写再比，避免“内容对了
+但大小写不同”导致误判。
+
+## 两条安全红线
+
+这两点务必记住，它们是真实世界里最常见的误用：
+
+- **不要用它存密码。** 普通哈希算得太快，攻击者可以每秒尝试上亿次来暴力破解。
+  存口令请用专门的口令哈希算法，如 `argon2` 或 `bcrypt`——它们刻意算得很慢，
+  还带“加盐”（salt）。本章的 SHA-256 只适合做完整性校验。
+- **`matches` 的比较不是常数时间的。** `==` 一旦发现某个字符不同就提前返回，
+  这会泄漏“前几位对不对”的时间信息。对抗计时攻击的场景（例如校验消息认证码
+  MAC）应改用常数时间比较，如 `subtle` crate 的 `ConstantTimeEq`。本章只做
+  教学用的完整性校验，普通比较已经够用。
+
+## 几个可以直接断言的测试向量
+
+哈希是确定的，所以这些值永远成立，可以放心写进测试：
+
+```text
+SHA-256("")    = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+SHA-256("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+```
+
+如果不想硬编码 SHA-512 那一长串，也可以退一步只断言“长度等于 128 个十六进制
+字符”。
+
+## 练习
+
+- 给 `verify` 加一个 `matches_sha512`，复用 `sha512_hex` 做校验。
+- 写一个函数读取一个文件并返回它的 SHA-256（用 `update` 分块喂入，别一次性读完）。
+- 把 `Sha256` 换成 `sha3` crate 里的 `Sha3_256`，体会 `Digest` trait 带来的
+  “换算法几乎零改动”。
+
+## 小结
+
+哈希把任意数据压成定长摘要，确定且雪崩，是完整性校验的利器。`sha2` + `hex`
+就能算出标准摘要；而 `Digest` trait 让你在不同哈希算法间自由切换。切记：它不是
+密码存储工具，普通比较也不是常数时间的。
+
+## 下一步
+
+前面的章节都在单线程里处理数据。当数据量大、计算密集时，可以用数据并行把活儿
+摊到多个 CPU 核心上。下一章学习用 `rayon` 做并行迭代。

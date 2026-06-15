@@ -1,6 +1,11 @@
 # Rust Tutorial
 
-面向中文开发者的 Rust 学习平台。当前仓库先落地 V1 的基础骨架：
+面向中文开发者的 Rust 学习平台。
+
+- 仓库：<https://github.com/xzsean666/rust-tutorials>
+- 作者：[xzsean](https://github.com/xzsean666)
+
+当前仓库先落地 V1 的基础骨架：
 
 - `docs/`：产品与内容维护文档。
 - `examples/`：可编译、可测试的 Rust 示例 workspace。

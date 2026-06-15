@@ -49,6 +49,9 @@ members = [
   "45_chrono",
   "46_regex",
   "47_itertools",
+  "48_uuid",
+  "49_sha2",
+  "50_rayon",
 ]
 
 [workspace.package]
