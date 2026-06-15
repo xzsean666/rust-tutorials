@@ -6,3 +6,6 @@ website/node_modules/
 
 .DS_Store
 *.log
+
+# 待办示例 CLI 的默认数据文件
+examples/todo.json

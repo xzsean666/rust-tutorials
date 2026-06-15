@@ -1,0 +1,80 @@
+---
+title: "Box 与递归类型"
+description: "用 Box<T> 把数据放到堆上,定义递归数据结构。"
+stage: "smart-pointers"
+order: 230
+level: "intermediate"
+estimatedMinutes: 25
+tags: ["智能指针", "Box"]
+rustConcepts: ["Box", "heap", "recursive type"]
+prerequisites: ["22-custom-iterator"]
+exampleDir: "22_box"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# Box 与递归类型
+
+## 你会学到什么
+
+- `Box<T>` 把值放到堆上,自己只占一个指针大小。
+- 递归类型必须用 `Box`(或其他指针)打破“无限大小”。
+- `Box` 是最简单的智能指针,离开作用域自动释放堆内存。
+
+## 最小示例
+
+```rust
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_22_box
+cargo test -p rt_22_box
+```
+
+## 代码讲解
+
+如果直接写 `Cons(i32, List)`,编译器无法计算 `List` 的大小——它会无限嵌套。`Box<List>` 在栈上只是一个指针,大小固定,于是类型成立:
+
+```rust
+fn sum(list: &List) -> i32 {
+    match list {
+        Cons(value, rest) => value + sum(rest),
+        Nil => 0,
+    }
+}
+```
+
+`Box` 还常用于:把大对象移到堆上避免昂贵的栈拷贝、或把不定大小的 trait 对象装箱(`Box<dyn Trait>`)。
+
+## 常见错误
+
+定义递归类型时漏了 `Box`:
+
+```rust
+enum List {
+    Cons(i32, List), // ❌ recursive type has infinite size
+    Nil,
+}
+```
+
+把递归字段包进 `Box` 即可。
+
+## 练习
+
+- 给链表加一个 `push_front` 函数,返回新的 `List`。
+- 实现一个二叉树类型,用 `Box` 存左右子节点。
+
+## 小结
+
+`Box<T>` 是“拥有所有权的堆指针”,让递归类型成为可能,也是其他智能指针的基础。
+
+## 下一步
+
+当一份数据需要多个所有者时,用 `Rc`。下一章学习引用计数。

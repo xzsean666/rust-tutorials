@@ -1,0 +1,84 @@
+---
+title: "借用与引用"
+description: "用 & 和 &mut 借用数据，掌握借用检查器的规则。"
+stage: "ownership"
+order: 80
+level: "beginner"
+estimatedMinutes: 30
+tags: ["所有权", "借用"]
+rustConcepts: ["reference", "borrow", "&mut", "borrow checker"]
+prerequisites: ["07-ownership"]
+exampleDir: "07_borrowing"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 借用与引用
+
+## 你会学到什么
+
+- 用 `&` 创建共享借用，用 `&mut` 创建可变借用。
+- 借用规则：要么多个共享借用，要么一个可变借用，不能同时。
+- 借用不转移所有权，调用方仍然拥有数据。
+
+## 最小示例
+
+```rust
+let mut message = String::from("hello");
+append_exclaim(&mut message); // 可变借用
+println!("{message}"); // message 仍然属于这里
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_07_borrowing
+cargo test -p rt_07_borrowing
+```
+
+## 代码讲解
+
+共享借用 `&T` 是只读的，可以同时存在多个：
+
+```rust
+fn first_word(text: &str) -> &str {
+    text.split_whitespace().next().unwrap_or("")
+}
+```
+
+可变借用 `&mut T` 允许修改，但同一时刻只能有一个：
+
+```rust
+fn append_exclaim(text: &mut String) {
+    text.push('!');
+}
+```
+
+借用检查器在编译期保证：不会出现“一边读一边写”的数据竞争。
+
+## 常见错误
+
+同时持有可变借用和共享借用：
+
+```rust
+let mut v = vec![1, 2, 3];
+let first = &v[0];   // 共享借用
+v.push(4);           // ❌ 可变借用，与 first 冲突
+println!("{first}");
+```
+
+修复方式是缩小借用范围，让 `first` 在 `push` 之前用完。
+
+## 练习
+
+- 写一个函数 `&mut Vec<i32>`，把每个元素翻倍。
+- 写一个函数返回切片中的最大值引用 `&i32`。
+
+## 小结
+
+借用让你在不转移所有权的前提下访问数据。共享借用可读不可写且可多个，可变借用唯一且可写。
+
+## 下一步
+
+切片是一种特别有用的借用形式，下一章详细学习。

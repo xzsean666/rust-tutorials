@@ -1,0 +1,81 @@
+---
+title: "channel 消息传递"
+description: "用 mpsc channel 在线程间安全传递数据。"
+stage: "concurrency"
+order: 270
+level: "intermediate"
+estimatedMinutes: 25
+tags: ["并发", "channel"]
+rustConcepts: ["mpsc", "channel", "send", "recv"]
+prerequisites: ["26-threads"]
+exampleDir: "26_channels"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# channel 消息传递
+
+## 你会学到什么
+
+- `mpsc::channel` 创建发送端 `Sender` 和接收端 `Receiver`。
+- “不要用共享内存来通信,要用通信来共享内存”。
+- 接收端可以像迭代器一样消费,直到所有发送端关闭。
+
+## 最小示例
+
+```rust
+use std::sync::mpsc;
+
+let (tx, rx) = mpsc::channel();
+tx.send(42).unwrap();
+assert_eq!(rx.recv().unwrap(), 42);
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_26_channels
+cargo test -p rt_26_channels
+```
+
+## 代码讲解
+
+生产者线程持有 `Sender`,主线程从 `Receiver` 收集:
+
+```rust
+let (sender, receiver) = mpsc::channel();
+thread::spawn(move || {
+    for value in 1..=count {
+        sender.send(value * value).unwrap();
+    }
+    // sender drop -> 接收端迭代结束
+});
+let result: Vec<i32> = receiver.iter().collect();
+```
+
+`receiver.iter()` 会阻塞等待,直到所有 `Sender` 都被 drop 才结束。`mpsc` 意为 multi-producer single-consumer——可以 `clone` 多个发送端,但只有一个接收端。
+
+## 常见错误
+
+接收端一直阻塞,因为发送端没被 drop:
+
+```rust
+let (tx, rx) = mpsc::channel();
+// 保留了 tx 又去 rx.iter().collect() -> 永远等待
+```
+
+确保发送完后让 `Sender` 离开作用域。
+
+## 练习
+
+- 用 `tx.clone()` 创建两个生产者线程,主线程汇总它们的消息。
+- 用 channel 实现一个简单的任务队列。
+
+## 小结
+
+channel 把数据所有权从一个线程“搬运”到另一个,天然避免数据竞争,是 Rust 推荐的线程通信方式。
+
+## 下一步
+
+有时确实需要共享可变状态。下一章学习 `Arc<Mutex<T>>`。

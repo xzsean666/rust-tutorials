@@ -1,0 +1,77 @@
+---
+title: "文档与文档测试"
+description: "用 /// 写文档,让示例代码同时成为测试。"
+stage: "quality"
+order: 320
+level: "intermediate"
+estimatedMinutes: 25
+tags: ["工程质量", "文档"]
+rustConcepts: ["doc comment", "///", "doctest", "cargo doc"]
+prerequisites: ["31-testing"]
+exampleDir: "31_doc_tests"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 文档与文档测试
+
+## 你会学到什么
+
+- 用 `///` 写条目文档,用 `//!` 写模块/crate 级文档。
+- 文档里的代码块会被 `cargo test` 当作测试运行(doctest)。
+- 用 `cargo doc --open` 生成并浏览 HTML 文档。
+
+## 最小示例
+
+````rust
+/// 返回较大值。
+///
+/// # 示例
+///
+/// ```
+/// use rt_31_doc_tests::max;
+/// assert_eq!(max(3, 7), 7);
+/// ```
+pub fn max(left: i64, right: i64) -> i64 {
+    if left >= right { left } else { right }
+}
+````
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_31_doc_tests
+cargo test -p rt_31_doc_tests   # 会运行文档里的示例
+```
+
+## 代码讲解
+
+文档注释支持 Markdown,惯用 `# 示例`、`# Panics`、`# Errors` 等小节。最妙的是:示例里的代码会被编译并执行,所以**文档永远不会和实现脱节**——示例写错了 `cargo test` 就会失败。
+
+`cargo test` 的输出末尾会有一段 `Doc-tests`,就是这些示例的运行结果。运行 `cargo doc --open` 可以看到渲染后的网页文档。
+
+## 常见错误
+
+文档示例引用了私有项或忘了 `use`,导致 doctest 编译失败:
+
+```rust
+/// ```
+/// assert_eq!(max(3, 7), 7); // ❌ 缺少 use rt_31_doc_tests::max;
+/// ```
+```
+
+doctest 是独立编译的,要像外部用户那样写完整的 `use`。
+
+## 练习
+
+- 给 `reverse` 函数补一个包含中文的文档示例。
+- 用 `# Panics` 小节描述一个会 panic 的函数,并加上对应 doctest。
+
+## 小结
+
+文档注释让 API 自带说明,doctest 让示例永远可信。`cargo doc` 一键生成专业文档站。
+
+## 下一步
+
+接下来进入异步编程,学习 `async`/`await` 与 tokio。

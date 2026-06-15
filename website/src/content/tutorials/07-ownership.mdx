@@ -1,0 +1,96 @@
+---
+title: "所有权与移动"
+description: "理解 Rust 的所有权规则、移动语义和 clone 的代价。"
+stage: "ownership"
+order: 70
+level: "beginner"
+estimatedMinutes: 30
+tags: ["所有权", "内存模型"]
+rustConcepts: ["ownership", "move", "drop", "clone"]
+prerequisites: ["06-control-flow"]
+exampleDir: "06_ownership"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 所有权与移动
+
+## 你会学到什么
+
+- 每个值都有唯一的所有者，所有者离开作用域时值被释放。
+- 把值传给函数或赋给新变量会发生“移动”，原变量随后失效。
+- 需要保留原值时用 `clone`，但要清楚它的复制代价。
+
+## 最小示例
+
+```rust
+let greeting = String::from("hello");
+let length = consume(greeting); // greeting 被移动
+// println!("{greeting}"); // ❌ 此处 greeting 已失效
+println!("length = {length}");
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_06_ownership
+cargo test -p rt_06_ownership
+```
+
+## 代码讲解
+
+Rust 没有 GC，靠所有权在编译期决定何时释放内存。三条规则：
+
+1. 每个值有且只有一个所有者。
+2. 同一时刻只有一个所有者。
+3. 所有者离开作用域，值被 `drop`。
+
+把 `String` 传进函数会移动所有权：
+
+```rust
+fn consume(owned: String) -> usize {
+    owned.len()
+}
+```
+
+如果你还想继续使用原值，有两种选择：传引用（借用，下一章）或显式 `clone`：
+
+```rust
+let original = String::from("rust");
+let copy = original.clone();
+println!("{original} / {copy}");
+```
+
+像 `i32`、`bool` 这类实现了 `Copy` 的标量类型不会被移动，而是按位复制。
+
+## 常见错误
+
+移动后继续使用原变量：
+
+```rust
+let s = String::from("hi");
+let t = s;
+println!("{s}"); // ❌ value borrowed here after move
+```
+
+修复方式是改用引用或 `clone`：
+
+```rust
+let s = String::from("hi");
+let t = s.clone();
+println!("{s} {t}");
+```
+
+## 练习
+
+- 写一个函数接收 `Vec<String>` 并返回总字符数，思考它是否需要所有权。
+- 把上面的函数改成接收 `&[String]`，对比调用方的差异。
+
+## 小结
+
+所有权是 Rust 内存安全的核心。移动转移所有权，`clone` 复制数据，`Copy` 类型则自动复制。
+
+## 下一步
+
+大多数时候我们不想转移所有权，而是临时借用。下一章学习引用与借用。

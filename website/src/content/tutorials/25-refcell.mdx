@@ -1,0 +1,83 @@
+---
+title: "RefCell 与内部可变性"
+description: "用 RefCell<T> 在只持有共享引用时修改数据。"
+stage: "smart-pointers"
+order: 250
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["智能指针", "RefCell", "内部可变性"]
+rustConcepts: ["RefCell", "interior mutability", "borrow_mut", "Rc<RefCell<T>>"]
+prerequisites: ["24-rc"]
+exampleDir: "24_refcell"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# RefCell 与内部可变性
+
+## 你会学到什么
+
+- `RefCell<T>` 把借用检查从编译期推迟到运行期。
+- 即使只持有 `&self`,也能通过 `borrow_mut()` 修改内部数据。
+- `Rc<RefCell<T>>` 组合出“多个所有者 + 可变”的常见模式。
+
+## 最小示例
+
+```rust
+use std::cell::RefCell;
+
+let cell = RefCell::new(vec![1, 2]);
+cell.borrow_mut().push(3); // 通过共享引用修改
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_24_refcell
+cargo test -p rt_24_refcell
+```
+
+## 代码讲解
+
+`borrow()` 拿只读引用,`borrow_mut()` 拿可变引用。借用规则仍然成立,只是改成运行时检查:
+
+```rust
+fn log(&self, message: &str) {
+    self.messages.borrow_mut().push(message.to_string());
+}
+```
+
+注意 `log` 的参数是 `&self` 而不是 `&mut self`——这就是“内部可变性”。
+
+`Rc<RefCell<T>>` 把两者结合:`Rc` 提供多个所有者,`RefCell` 提供可变性:
+
+```rust
+let logger = Rc::new(Logger::new());
+let clone = Rc::clone(&logger);
+clone.log("hi"); // 改动对 logger 也可见
+```
+
+## 常见错误
+
+运行时违反借用规则会 panic 而不是编译错误:
+
+```rust
+let a = cell.borrow_mut();
+let b = cell.borrow_mut(); // ❌ already borrowed: panic at runtime
+```
+
+确保上一个借用先离开作用域。这是 `RefCell` 相比编译期检查的代价。
+
+## 练习
+
+- 用 `Rc<RefCell<i32>>` 实现一个被多处共享的计数器。
+- 故意制造一次运行时双重借用,观察 panic 信息。
+
+## 小结
+
+`RefCell` 用运行时检查换来内部可变性,`Rc<RefCell<T>>` 是单线程共享可变状态的经典组合。
+
+## 下一步
+
+接下来进入并发阶段,学习线程、channel 和 `Arc<Mutex<T>>`。

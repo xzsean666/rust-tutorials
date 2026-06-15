@@ -1,0 +1,92 @@
+---
+title: "真实项目:命令行待办应用"
+description: "综合结构体、错误处理、serde 与 clap,做一个可持久化的待办 CLI。"
+stage: "project"
+order: 430
+level: "advanced"
+estimatedMinutes: 45
+tags: ["项目", "综合"]
+rustConcepts: ["struct", "enum", "Result", "serde", "clap", "file IO"]
+prerequisites: ["42-ffi"]
+exampleDir: "42_todo_cli"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 真实项目:命令行待办应用
+
+## 你会学到什么
+
+- 把前面学的内容综合到一个真实小项目里:建模、错误、集合、序列化、CLI、文件 IO。
+- 用 lib + bin 的结构,让核心逻辑可测、入口轻薄。
+- 用 JSON 文件做持久化,跨多次运行保存状态。
+
+## 最小示例
+
+```bash
+todo add "学习 Rust"
+todo done 1
+todo list
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_42_todo_cli -- add "学习 Rust"
+cargo run -p rt_42_todo_cli -- list
+cargo run -p rt_42_todo_cli -- done 1
+cargo test -p rt_42_todo_cli
+```
+
+## 代码讲解
+
+核心逻辑放在 `lib.rs` 的 `TodoList`,完全不涉及命令行或文件,因此可以纯逻辑单测:
+
+```rust
+pub fn add(&mut self, title: &str) -> Result<u32, TodoError> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err(TodoError::EmptyTitle);
+    }
+    // ... 分配 id 并入列
+}
+```
+
+错误用 `thiserror` 定义(`NotFound`、`EmptyTitle`),持久化用 `serde` 把整个清单序列化成 JSON。
+
+`main.rs` 只做三件事:用 `clap` 解析子命令、加载/保存文件、把命令转发给 `TodoList`。`main` 返回 `anyhow::Result<()>`,于是 `?` 能统一处理 `TodoError`、IO 错误和 JSON 错误:
+
+```rust
+fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+    let mut list = load(&cli.file);
+    match cli.command {
+        Command::Add { title } => { let id = list.add(&title)?; /* ... */ }
+        Command::Done { id }   => { list.complete(id)?; }
+        Command::List          => { /* 打印 */ }
+    }
+    fs::write(&cli.file, list.to_json()?)?;
+    Ok(())
+}
+```
+
+这正是 Rust 项目的典型分层:**纯逻辑库 + 薄入口**,可测性和可维护性都更好。
+
+## 常见错误
+
+把文件 IO 和业务逻辑混在一起,导致逻辑无法在不碰磁盘的情况下测试。把 IO 留在 `main`、逻辑留在库,是值得坚持的习惯。
+
+## 练习
+
+- 加一个 `remove <id>` 子命令(库里已有 `remove`)。
+- 给 `list` 加一个 `--pending` 选项,只显示未完成任务。
+- 把存储格式从 JSON 换成你在 SQLite 那章学的数据库。
+
+## 小结
+
+这个小项目把建模、错误处理、序列化、CLI 和文件 IO 串了起来,核心是“纯逻辑库 + 薄入口”的分层。你已经走完了从 Hello World 到真实项目的完整路线!
+
+## 下一步
+
+恭喜完成路线!接下来可以深入标准库源码、阅读优秀 crate、或挑一个真实需求从零做起。持续写、持续读,是掌握 Rust 的最好方式。

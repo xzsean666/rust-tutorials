@@ -1,0 +1,84 @@
+---
+title: "自定义错误类型"
+description: "用枚举定义错误，实现 Display 和 Error trait。"
+stage: "std"
+order: 160
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["标准库", "错误处理"]
+rustConcepts: ["Error trait", "Display", "From", "enum error"]
+prerequisites: ["15-error-handling"]
+exampleDir: "15_custom_errors"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 自定义错误类型
+
+## 你会学到什么
+
+- 用枚举把领域内的多种失败原因建模成一个错误类型。
+- 实现 `Display` 提供人类可读的信息，实现 `std::error::Error` 接入生态。
+- 用 `map_err` 把底层错误转换成自己的错误。
+
+## 最小示例
+
+```rust
+#[derive(Debug)]
+enum ParseError {
+    Empty,
+    NotANumber(String),
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_15_custom_errors
+cargo test -p rt_15_custom_errors
+```
+
+## 代码讲解
+
+实现 `Display` 后，错误可以被友好地打印；实现空的 `Error` trait 让它能放进 `Box<dyn Error>`：
+
+```rust
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseError::Empty => write!(f, "输入为空"),
+            ParseError::NotANumber(token) => write!(f, "不是数字: {token}"),
+        }
+    }
+}
+
+impl std::error::Error for ParseError {}
+```
+
+用 `map_err` 把标准库错误转换成自己的语义错误：
+
+```rust
+let value: i64 = trimmed
+    .parse()
+    .map_err(|_| ParseError::NotANumber(trimmed.to_string()))?;
+```
+
+## 常见错误
+
+只 `#[derive(Debug)]` 而不实现 `Display`，错误就只能用 `{:?}` 打印，对用户不友好。生产代码两者通常都要。
+
+> 实际项目中常用 `thiserror` 自动派生这些实现，我们会在“生态库”阶段介绍。
+
+## 练习
+
+- 给 `ParseError` 加一个 `TooLarge(i64)` 变体并在解析时使用。
+- 实现 `From<std::num::ParseIntError> for ParseError`，然后用 `?` 替换 `map_err`。
+
+## 小结
+
+自定义错误类型让失败原因变得清晰、可匹配。`Display` + `Error` 是接入 Rust 错误生态的标准组合。
+
+## 下一步
+
+接下来进入泛型与 trait 阶段，学习写出可复用的抽象代码。

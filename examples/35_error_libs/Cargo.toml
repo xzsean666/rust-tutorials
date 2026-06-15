@@ -1,0 +1,9 @@
+[package]
+name = "rt_35_error_libs"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow = "1"
+thiserror = "2"

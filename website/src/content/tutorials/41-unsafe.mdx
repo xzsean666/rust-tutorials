@@ -1,0 +1,78 @@
+---
+title: "unsafe 基础"
+description: "理解 unsafe 的能力边界,以及如何封装成安全接口。"
+stage: "advanced"
+order: 410
+level: "advanced"
+estimatedMinutes: 30
+tags: ["进阶", "unsafe"]
+rustConcepts: ["unsafe", "raw pointer", "from_raw_parts_mut", "SAFETY"]
+prerequisites: ["40-macros"]
+exampleDir: "40_unsafe"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# unsafe 基础
+
+## 你会学到什么
+
+- `unsafe` 解锁五种能力,其中最常见的是解引用裸指针。
+- `unsafe` 不关闭借用检查,它只是让你为某些操作负责。
+- 好的做法是把 unsafe 封装在安全接口内,并写上 `// SAFETY:` 说明。
+
+## 最小示例
+
+```rust
+fn double_in_place(value: &mut i32) {
+    let ptr: *mut i32 = value;
+    // SAFETY: ptr 来自有效的可变引用。
+    unsafe { *ptr *= 2; }
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_40_unsafe
+cargo test -p rt_40_unsafe
+```
+
+## 代码讲解
+
+经典例子:借用检查器无法证明从一个切片切出的两半互不重叠,标准库的 `split_at_mut` 内部就用了 unsafe:
+
+```rust
+fn split_at_mut(slice: &mut [i32], mid: usize) -> (&mut [i32], &mut [i32]) {
+    let len = slice.len();
+    let ptr = slice.as_mut_ptr();
+    assert!(mid <= len);
+    // SAFETY: mid <= len,两个子切片不重叠且都在原范围内。
+    unsafe {
+        (
+            std::slice::from_raw_parts_mut(ptr, mid),
+            std::slice::from_raw_parts_mut(ptr.add(mid), len - mid),
+        )
+    }
+}
+```
+
+关键在于:对外的函数签名是完全安全的,调用方无需写 `unsafe`;不变量(`mid <= len`、不重叠)由实现者用 `assert!` 和注释来保证。
+
+## 常见错误
+
+以为 `unsafe` 会“关闭检查、随便写”。它只放开五件事:解引用裸指针、调用 unsafe 函数、访问/修改可变静态变量、实现 unsafe trait、访问 union 字段。其余规则照旧。
+
+## 练习
+
+- 用裸指针实现一个 `swap(a: &mut i32, b: &mut i32)`。
+- 给 `split_at_mut` 加一个 `mid > len` 的测试,确认会 panic。
+
+## 小结
+
+`unsafe` 是“我来担保”的承诺,应尽量小、尽量封装,并用 `// SAFETY:` 注释写清依赖的不变量。
+
+## 下一步
+
+unsafe 的一个主要用途是和 C 互操作。下一章学习 FFI。

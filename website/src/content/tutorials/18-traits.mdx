@@ -1,0 +1,86 @@
+---
+title: "trait 与共享行为"
+description: "用 trait 定义共享接口和默认方法。"
+stage: "generics"
+order: 180
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["泛型", "trait"]
+rustConcepts: ["trait", "default method", "impl Trait"]
+prerequisites: ["17-generics"]
+exampleDir: "17_traits"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# trait 与共享行为
+
+## 你会学到什么
+
+- `trait` 定义一组类型可以共享的方法（类似接口）。
+- trait 可以提供默认方法，实现者按需覆盖。
+- `&impl Trait` 是简洁的 trait bound 写法。
+
+## 最小示例
+
+```rust
+trait Summary {
+    fn summarize(&self) -> String;
+    fn preview(&self) -> String {
+        format!("{} (更多)", self.summarize()) // 默认方法
+    }
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_17_traits
+cargo test -p rt_17_traits
+```
+
+## 代码讲解
+
+为类型实现 trait：
+
+```rust
+impl Summary for Article {
+    fn summarize(&self) -> String {
+        format!("{} - {}", self.title, self.author)
+    }
+}
+```
+
+`Article` 没有定义 `preview`，于是自动获得默认实现；`Tweet` 则可以覆盖它。
+
+函数用 `&impl Summary` 接受任何实现者：
+
+```rust
+fn announce(item: &impl Summary) -> String {
+    format!("最新: {}", item.preview())
+}
+```
+
+## 常见错误
+
+试图为外部类型实现外部 trait（孤儿规则）：
+
+```rust
+impl std::fmt::Display for Vec<i32> { /* ❌ 两者都不是本地定义 */ }
+```
+
+trait 或类型至少有一个定义在你自己的 crate 里才允许实现。
+
+## 练习
+
+- 定义一个 `Describe` trait，给 `i32` 和 `String` 各实现一份。
+- 给 `Summary` 加一个默认方法 `word_count`，统计 `summarize` 的词数。
+
+## 小结
+
+trait 是 Rust 的抽象基石：定义共享行为、提供默认实现、配合泛型做静态分发。
+
+## 下一步
+
+当需要在运行时混合多种实现时，要用 trait 对象。下一章学习 `dyn`。

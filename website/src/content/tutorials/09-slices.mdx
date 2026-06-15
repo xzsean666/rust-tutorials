@@ -1,0 +1,85 @@
+---
+title: "切片"
+description: "用切片借用数组、Vec 和字符串的一段连续数据。"
+stage: "ownership"
+order: 90
+level: "beginner"
+estimatedMinutes: 25
+tags: ["所有权", "切片"]
+rustConcepts: ["slice", "&[T]", "&str", "range"]
+prerequisites: ["08-borrowing"]
+exampleDir: "08_slices"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 切片
+
+## 你会学到什么
+
+- 切片 `&[T]` 是对连续序列的借用视图，不拥有数据。
+- `&[i32]` 同时接受数组、`Vec` 和切片，是函数参数的首选。
+- 字符串切片 `&str` 指向 `String` 的一段字节。
+
+## 最小示例
+
+```rust
+let numbers = [1, 2, 3, 4, 5];
+let middle = &numbers[1..4]; // [2, 3, 4]
+println!("{middle:?}");
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_08_slices
+cargo test -p rt_08_slices
+```
+
+## 代码讲解
+
+用 `&[T]` 而不是 `&Vec<T>` 做参数，能让函数更通用：
+
+```rust
+fn sum(values: &[i32]) -> i32 {
+    values.iter().sum()
+}
+```
+
+`sum(&array)`、`sum(&vec)`、`sum(&vec[1..3])` 都能调用。
+
+切片用 range 语法创建，`&s[a..b]` 包含 `a` 不含 `b`：
+
+```rust
+fn first_word(text: &str) -> &str {
+    match text.find(' ') {
+        Some(index) => &text[..index],
+        None => text,
+    }
+}
+```
+
+## 常见错误
+
+字符串切片必须落在字符边界上，否则运行时 panic：
+
+```rust
+let s = String::from("中文");
+let bad = &s[0..1]; // ❌ byte index 1 is not a char boundary
+```
+
+处理多字节文本时用 `chars()` 或 `char_indices()` 而不是直接按字节切。
+
+## 练习
+
+- 写一个函数返回切片的最后一个元素 `Option<&i32>`。
+- 写一个函数把 `&str` 按第一个空格拆成 `(&str, &str)`。
+
+## 小结
+
+切片是零拷贝的借用视图。优先用 `&[T]` 和 `&str` 做参数类型，让接口更灵活。
+
+## 下一步
+
+当引用要存进结构体或跨函数返回时，需要生命周期标注。下一章学习生命周期。

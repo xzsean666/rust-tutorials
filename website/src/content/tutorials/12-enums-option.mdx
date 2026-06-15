@@ -1,0 +1,84 @@
+---
+title: "枚举与 Option"
+description: "用带数据的枚举建模多态状态，用 Option 表达可能为空。"
+stage: "modeling"
+order: 120
+level: "beginner"
+estimatedMinutes: 30
+tags: ["复合类型", "枚举", "Option"]
+rustConcepts: ["enum", "Option", "match", "variant"]
+prerequisites: ["11-structs"]
+exampleDir: "11_enums_option"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 枚举与 Option
+
+## 你会学到什么
+
+- 枚举的每个变体可以携带不同的数据。
+- 用 `match` 对枚举做穷尽处理。
+- `Option<T>` 是标准库枚举，替代其他语言的 `null`。
+
+## 最小示例
+
+```rust
+enum Shape {
+    Circle { radius: f64 },
+    Rectangle { width: f64, height: f64 },
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_11_enums_option
+cargo test -p rt_11_enums_option
+```
+
+## 代码讲解
+
+`match` 必须覆盖所有变体，编译器会在你漏掉时报错——这正是枚举安全的来源：
+
+```rust
+fn area(shape: &Shape) -> f64 {
+    match shape {
+        Shape::Circle { radius } => std::f64::consts::PI * radius * radius,
+        Shape::Rectangle { width, height } => width * height,
+    }
+}
+```
+
+`Option<T>` 只有两个变体：`Some(T)` 和 `None`。Rust 没有 `null`，“可能没有值”被编码进类型，迫使你显式处理：
+
+```rust
+match first_even(&[1, 3, 4]) {
+    Some(value) => println!("{value}"),
+    None => println!("none"),
+}
+```
+
+## 常见错误
+
+对 `Option` 直接 `unwrap()` 而不处理 `None`：
+
+```rust
+let value = first_even(&[1, 3, 5]).unwrap(); // ❌ None 时 panic
+```
+
+更安全的做法是 `match`、`if let`，或带默认值的 `unwrap_or`。
+
+## 练习
+
+- 给 `Shape` 加一个 `Triangle { base, height }` 变体，并补全 `area`。
+- 写一个返回 `Option<&str>` 的函数，取出切片的第一个元素。
+
+## 小结
+
+枚举建模“多选一”的数据，`match` 保证穷尽处理，`Option` 用类型消灭空指针。
+
+## 下一步
+
+`match` 的能力远不止区分变体。下一章系统学习模式匹配。

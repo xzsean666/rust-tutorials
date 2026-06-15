@@ -1,0 +1,79 @@
+---
+title: "共享状态:Arc 与 Mutex"
+description: "用 Arc<Mutex<T>> 在多线程间安全共享可变数据。"
+stage: "concurrency"
+order: 280
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["并发", "Arc", "Mutex"]
+rustConcepts: ["Arc", "Mutex", "lock", "Send", "Sync"]
+prerequisites: ["27-channels"]
+exampleDir: "27_shared_state"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 共享状态:Arc 与 Mutex
+
+## 你会学到什么
+
+- `Arc<T>` 是线程安全的引用计数(`Rc` 的多线程版)。
+- `Mutex<T>` 用锁保证同一时刻只有一个线程能改数据。
+- `Arc<Mutex<T>>` 是多线程共享可变状态的标准组合。
+
+## 最小示例
+
+```rust
+use std::sync::{Arc, Mutex};
+
+let counter = Arc::new(Mutex::new(0));
+*counter.lock().unwrap() += 1;
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_27_shared_state
+cargo test -p rt_27_shared_state
+```
+
+## 代码讲解
+
+每个线程拿到 `Arc` 的克隆,`lock()` 取得独占访问:
+
+```rust
+let counter = Arc::clone(&counter);
+thread::spawn(move || {
+    let mut value = counter.lock().unwrap();
+    *value += 1;
+});
+```
+
+`lock()` 返回一个 `MutexGuard`,离开作用域时自动解锁。`Arc` 提供共享所有权且线程安全(`Rc` 不是),`Mutex` 提供互斥访问——两者缺一不可。
+
+编译器通过 `Send` / `Sync` 这两个 marker trait 在编译期就拦住不安全的跨线程共享。
+
+## 常见错误
+
+用 `Rc` 而不是 `Arc` 跨线程:
+
+```rust
+let counter = Rc::new(Mutex::new(0));
+thread::spawn(move || { /* ❌ Rc 不是 Send */ });
+```
+
+跨线程共享所有权必须用 `Arc`。
+
+## 练习
+
+- 用 `Arc<Mutex<Vec<i32>>>` 让多个线程往同一个 `Vec` 里 push。
+- 把示例改成 `Arc<Mutex<HashMap<String, usize>>>` 的并发计数。
+
+## 小结
+
+`Arc` 管共享,`Mutex` 管互斥。`Arc<Mutex<T>>` 让多线程安全地读写同一份数据,违规会被编译期 `Send`/`Sync` 拦截。
+
+## 下一步
+
+代码变多后需要组织模块。下一章进入模块系统与 crate。

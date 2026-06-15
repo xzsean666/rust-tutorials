@@ -1,0 +1,5 @@
+[package]
+name = "rt_13_collections"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true

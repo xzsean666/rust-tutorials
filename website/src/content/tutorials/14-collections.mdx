@@ -1,0 +1,80 @@
+---
+title: "常用集合"
+description: "掌握 Vec、HashMap 和 String 的常见用法。"
+stage: "std"
+order: 140
+level: "beginner"
+estimatedMinutes: 30
+tags: ["标准库", "集合"]
+rustConcepts: ["Vec", "HashMap", "String", "entry"]
+prerequisites: ["13-pattern-matching"]
+exampleDir: "13_collections"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 常用集合
+
+## 你会学到什么
+
+- `Vec<T>` 是可增长的数组，最常用的集合。
+- `HashMap<K, V>` 用 `entry` API 优雅地“查找或插入”。
+- `String` 是可增长的 UTF-8 文本。
+
+## 最小示例
+
+```rust
+use std::collections::HashMap;
+
+let mut counts: HashMap<String, usize> = HashMap::new();
+*counts.entry("a".to_string()).or_insert(0) += 1;
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_13_collections
+cargo test -p rt_13_collections
+```
+
+## 代码讲解
+
+`entry(key).or_insert(default)` 返回值的可变引用：键不存在时插入默认值，存在时直接拿到。这让计数器变得很简洁：
+
+```rust
+for word in text.split_whitespace() {
+    *counts.entry(word.to_string()).or_insert(0) += 1;
+}
+```
+
+`Vec` 的排序去重组合很常见：
+
+```rust
+let mut result = values.to_vec();
+result.sort_unstable();
+result.dedup(); // 只去掉相邻重复，所以要先排序
+```
+
+## 常见错误
+
+`get` 返回的是 `Option<&V>` 而不是 `V`：
+
+```rust
+let n = counts.get("a") + 1; // ❌ 不能直接对 Option 运算
+```
+
+用 `counts.get("a").copied().unwrap_or(0)` 取出值或默认值。
+
+## 练习
+
+- 用 `HashMap` 统计一段文本里每个字符的出现次数。
+- 写一个函数合并两个 `Vec<i32>` 并返回排序去重后的结果。
+
+## 小结
+
+`Vec`、`HashMap`、`String` 是日常 Rust 的三大主力集合，`entry` API 是 HashMap 的高频技巧。
+
+## 下一步
+
+真实程序会遇到失败。下一章学习用 `Result` 和 `?` 处理错误。

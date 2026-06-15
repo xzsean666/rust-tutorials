@@ -1,0 +1,78 @@
+---
+title: "线程"
+description: "用 thread::spawn 创建线程,用 join 收集结果。"
+stage: "concurrency"
+order: 260
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["并发", "线程"]
+rustConcepts: ["thread", "spawn", "join", "move closure"]
+prerequisites: ["25-refcell"]
+exampleDir: "25_threads"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 线程
+
+## 你会学到什么
+
+- `thread::spawn` 启动一个新线程,返回 `JoinHandle`。
+- `join()` 等待线程结束并取回返回值。
+- 闭包要用 `move` 把数据所有权交给线程。
+
+## 最小示例
+
+```rust
+use std::thread;
+
+let handle = thread::spawn(|| 1 + 2);
+let result = handle.join().unwrap(); // 3
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_25_threads
+cargo test -p rt_25_threads
+```
+
+## 代码讲解
+
+把数据 `move` 进每个线程,各算各的,最后 `join` 汇总:
+
+```rust
+let handles: Vec<_> = chunks
+    .into_iter()
+    .map(|chunk| thread::spawn(move || chunk.iter().sum::<i32>()))
+    .collect();
+
+let total: i32 = handles.into_iter().map(|h| h.join().unwrap()).sum();
+```
+
+`spawn` 的闭包必须 `'static`(不借用栈上的临时数据),所以通常用 `move` 转移所有权。线程的返回值通过 `join()` 拿到,它返回 `Result`,因为线程可能 panic。
+
+## 常见错误
+
+借用了主线程的局部变量:
+
+```rust
+let data = vec![1, 2, 3];
+thread::spawn(|| println!("{data:?}")); // ❌ 可能在 data 释放后才运行
+```
+
+加 `move`:`thread::spawn(move || ...)`。
+
+## 练习
+
+- 启动 3 个线程,各返回自己的编号,收集成 `Vec`。
+- 测量串行求和与并行求和在大数据上的耗时差异。
+
+## 小结
+
+线程让任务真正并行。`move` 转移所有权满足 `'static` 约束,`join` 收回结果。
+
+## 下一步
+
+线程之间常用消息通信。下一章学习 channel。

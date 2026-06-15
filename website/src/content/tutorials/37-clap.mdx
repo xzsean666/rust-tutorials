@@ -1,0 +1,80 @@
+---
+title: "clap:命令行参数解析"
+description: "用 clap 的派生宏构建带校验的命令行接口。"
+stage: "ecosystem"
+order: 370
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["生态库", "CLI", "clap"]
+rustConcepts: ["clap", "derive", "Parser", "arg"]
+prerequisites: ["36-error-libs"]
+exampleDir: "36_clap"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# clap:命令行参数解析
+
+## 你会学到什么
+
+- `clap` 用派生宏把结构体变成命令行解析器。
+- `#[arg(...)]` 声明短选项、长选项、默认值。
+- 自动获得 `--help`、`--version` 和参数校验。
+
+## 最小示例
+
+```rust
+use clap::Parser;
+
+#[derive(Parser)]
+struct Args {
+    #[arg(short, long)]
+    name: String,
+    #[arg(short, long, default_value_t = 1)]
+    times: u32,
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_36_clap -- --name Rust --times 2
+cargo test -p rt_36_clap
+```
+
+依赖:
+
+```toml
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+```
+
+## 代码讲解
+
+`Args::parse()` 从真实命令行读取参数;在测试里用 `try_parse_from` 传入一个参数数组,无需启动进程:
+
+```rust
+let args = Args::try_parse_from(["greet", "--name", "Rust", "--times", "2"]).unwrap();
+```
+
+`#[arg(short, long)]` 同时生成 `-n` 和 `--name`,`default_value_t` 提供默认值。缺少必填参数或类型不符时,clap 会自动报错并打印用法,这也是为什么 `requires_name` 测试里 `try_parse_from(["greet"])` 返回 `Err`。
+
+注意命令行里 `--` 之后才是传给程序的参数:`cargo run -p ... -- --name Rust`。
+
+## 常见错误
+
+把业务逻辑和解析混在一起,难以测试。示例把渲染逻辑抽成 `render(&args)`,这样不依赖命令行也能单测。
+
+## 练习
+
+- 加一个 `--shout` 布尔开关,为 true 时把问候转成大写。
+- 用 clap 的子命令(`Subcommand`)实现 `add` / `list` 两个动作。
+
+## 小结
+
+clap 用声明式的派生宏生成健壮的命令行接口,把解析、校验、帮助文档都自动化。
+
+## 下一步
+
+接下来进入 Web 与数据库阶段,用 axum 和 SQLite 构建服务。

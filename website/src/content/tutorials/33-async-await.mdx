@@ -1,0 +1,88 @@
+---
+title: "async/await 基础"
+description: "用 async/await 和 tokio 运行时编写异步代码。"
+stage: "async"
+order: 330
+level: "advanced"
+estimatedMinutes: 35
+tags: ["异步", "tokio"]
+rustConcepts: ["async", "await", "Future", "tokio::main"]
+prerequisites: ["32-doc-tests"]
+exampleDir: "32_async_await"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# async/await 基础
+
+## 你会学到什么
+
+- `async fn` 返回一个 `Future`,只有 `.await` 时才推进执行。
+- Future 是惰性的,需要一个运行时(如 tokio)来驱动。
+- 用 `#[tokio::main]` 把 `main` 变成异步入口。
+
+## 最小示例
+
+```rust
+async fn fetch(id: u32) -> String {
+    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    format!("data-{id}")
+}
+
+#[tokio::main]
+async fn main() {
+    println!("{}", fetch(1).await);
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_32_async_await
+cargo test -p rt_32_async_await
+```
+
+依赖在该示例的 `Cargo.toml` 里:
+
+```toml
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+```
+
+## 代码讲解
+
+`async fn` 本身不执行任何代码,它返回一个待执行的 `Future`。`.await` 把控制权交还给运行时,运行时在等待期间可以去跑别的任务:
+
+```rust
+async fn fetch_both() -> String {
+    let first = fetch(1).await;  // 等第一个完成
+    let second = fetch(2).await; // 再等第二个
+    format!("{first},{second}")
+}
+```
+
+测试用 `#[tokio::test]` 替代 `#[test]`,它会在一个临时运行时里跑异步测试。
+
+## 常见错误
+
+调用 async 函数却忘了 `.await`,什么都不会发生:
+
+```rust
+fetch(1); // ❌ 返回一个被丢弃的 Future,sleep 不会执行
+```
+
+加上 `.await`(或把它交给 `spawn`/`join!`)。
+
+## 练习
+
+- 写一个 async 函数,顺序请求 3 个 id 并拼接结果。
+- 把 `sleep` 时间作为参数,观察 await 的耗时。
+
+## 小结
+
+`async`/`await` 把异步代码写得像同步一样直观,但 Future 惰性、需要运行时驱动是关键心智模型。
+
+## 下一步
+
+顺序 await 没有发挥并发优势。下一章学习并发任务:`join!` 与 `spawn`。

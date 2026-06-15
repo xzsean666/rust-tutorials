@@ -1,0 +1,93 @@
+---
+title: "数据库:SQLite"
+description: "用 rusqlite 操作内置 SQLite,完成增查改。"
+stage: "web-db"
+order: 390
+level: "advanced"
+estimatedMinutes: 30
+tags: ["数据库", "SQLite"]
+rustConcepts: ["rusqlite", "Connection", "prepare", "query_map"]
+prerequisites: ["38-axum"]
+exampleDir: "38_sqlite"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 数据库:SQLite
+
+## 你会学到什么
+
+- `rusqlite` 的 `bundled` 特性会一起编译 SQLite,无需系统安装。
+- 用 `execute` 做写操作,用 `prepare` + `query_map` 做查询。
+- 内存数据库 `open_in_memory()` 让数据库逻辑也能轻松单测。
+
+## 最小示例
+
+```rust
+let conn = Connection::open_in_memory()?;
+conn.execute("CREATE TABLE task (id INTEGER PRIMARY KEY, title TEXT NOT NULL)", [])?;
+conn.execute("INSERT INTO task (title) VALUES (?1)", ["learn sql"])?;
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_38_sqlite
+cargo test -p rt_38_sqlite
+```
+
+依赖:
+
+```toml
+[dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
+```
+
+## 代码讲解
+
+写操作用 `execute`,占位符 `?1`、`?2` 防止 SQL 注入:
+
+```rust
+conn.execute("INSERT INTO task (title) VALUES (?1)", [title])?;
+let id = conn.last_insert_rowid();
+```
+
+查询先 `prepare` 再 `query_map`,把每一行映射成结构体:
+
+```rust
+let mut stmt = conn.prepare("SELECT id, title, done FROM task ORDER BY id")?;
+let rows = stmt.query_map([], |row| {
+    Ok(Task {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        done: row.get::<_, i64>(2)? != 0,
+    })
+})?;
+let tasks: Vec<Task> = rows.collect::<Result<_, _>>()?;
+```
+
+SQLite 没有原生布尔,用 `INTEGER` 存 0/1,读出时转换。`open_in_memory()` 建立临时库,测试互不影响。
+
+## 常见错误
+
+直接把用户输入拼进 SQL 字符串,造成注入风险:
+
+```rust
+let sql = format!("SELECT * FROM task WHERE title = '{title}'"); // ❌
+```
+
+永远用占位符 `?1` 传参。
+
+## 练习
+
+- 加一个 `delete_task(conn, id)` 函数并测试。
+- 加一个按 `done` 过滤的查询,只返回未完成任务。
+
+## 小结
+
+rusqlite + bundled SQLite 提供零依赖的本地数据库,占位符参数化查询是安全底线,内存库让数据层可测。
+
+## 下一步
+
+接下来进入进阶主题:宏、unsafe 与 FFI。

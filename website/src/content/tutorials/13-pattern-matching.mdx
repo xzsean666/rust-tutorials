@@ -1,0 +1,91 @@
+---
+title: "模式匹配"
+description: "用 match、if let、守卫和解构写出清晰的分支逻辑。"
+stage: "modeling"
+order: 130
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["复合类型", "模式匹配"]
+rustConcepts: ["match", "if let", "guard", "destructuring", "range pattern"]
+prerequisites: ["12-enums-option"]
+exampleDir: "12_pattern_matching"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 模式匹配
+
+## 你会学到什么
+
+- `match` 可以解构枚举、结构体和元组并绑定内部值。
+- 用守卫 `if` 给分支加额外条件，用 `1..=9` 匹配范围。
+- `if let` / `while let` 是只关心一种模式时的简写。
+
+## 最小示例
+
+```rust
+let value = 5;
+let label = match value {
+    0 => "zero",
+    n if n < 0 => "negative",
+    1..=9 => "small",
+    _ => "large",
+};
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_12_pattern_matching
+cargo test -p rt_12_pattern_matching
+```
+
+## 代码讲解
+
+匹配枚举时可以直接解构出字段：
+
+```rust
+match command {
+    Command::Move { x, y } => format!("move to ({x}, {y})"),
+    Command::Write(text) => format!("write: {text}"),
+    Command::Quit => "quit".to_string(),
+}
+```
+
+守卫让同一个模式按额外条件细分，范围模式 `1..=9` 匹配一段连续值，`_` 是兜底分支。
+
+`if let` 适合只处理一种情况：
+
+```rust
+if let Some(value) = maybe {
+    println!("got {value}");
+}
+```
+
+## 常见错误
+
+`match` 没有覆盖所有可能且漏写 `_`：
+
+```rust
+match value {
+    0 => "zero",
+    1 => "one",
+    // ❌ 缺少其他情况，编译报错 non-exhaustive patterns
+}
+```
+
+补一个 `_ => ...` 兜底，或显式列全所有变体。
+
+## 练习
+
+- 用 `match` 解构元组 `(i32, i32)`，区分原点、坐标轴和一般点。
+- 用 `while let` 不断从 `Vec` 弹出元素直到为空。
+
+## 小结
+
+模式匹配把“判断 + 取值”合并为一步，配合穷尽检查让分支逻辑既简洁又安全。
+
+## 下一步
+
+接下来进入标准库阶段，学习常用集合与错误处理。

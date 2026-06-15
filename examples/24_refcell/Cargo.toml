@@ -1,0 +1,5 @@
+[package]
+name = "rt_24_refcell"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true

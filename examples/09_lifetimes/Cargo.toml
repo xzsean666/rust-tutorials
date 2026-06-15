@@ -1,0 +1,5 @@
+[package]
+name = "rt_09_lifetimes"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true

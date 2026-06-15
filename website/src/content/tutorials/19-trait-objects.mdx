@@ -1,0 +1,74 @@
+---
+title: "trait 对象与 dyn"
+description: "用 Box<dyn Trait> 在运行时存放不同类型。"
+stage: "generics"
+order: 190
+level: "intermediate"
+estimatedMinutes: 25
+tags: ["泛型", "trait", "多态"]
+rustConcepts: ["dyn", "trait object", "Box", "dynamic dispatch"]
+prerequisites: ["18-traits"]
+exampleDir: "18_trait_objects"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# trait 对象与 dyn
+
+## 你会学到什么
+
+- `Box<dyn Trait>` 让一个集合存放多种实现了同一 trait 的类型。
+- trait 对象用动态分发，运行时根据实际类型决定调用哪份方法。
+- 静态分发（泛型）和动态分发（dyn）各自的取舍。
+
+## 最小示例
+
+```rust
+let shapes: Vec<Box<dyn Shape>> = vec![
+    Box::new(Circle { radius: 1.0 }),
+    Box::new(Square { side: 2.0 }),
+];
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_18_trait_objects
+cargo test -p rt_18_trait_objects
+```
+
+## 代码讲解
+
+泛型 `Vec<T>` 只能装同一种类型；当你需要把 `Circle` 和 `Square` 放进同一个 `Vec`，就用 trait 对象：
+
+```rust
+fn total_area(shapes: &[Box<dyn Shape>]) -> f64 {
+    shapes.iter().map(|shape| shape.area()).sum()
+}
+```
+
+`dyn Shape` 在运行时通过虚表（vtable）找到正确的 `area` 实现，这叫动态分发。代价是一次指针跳转和无法内联；泛型则在编译期确定，速度更快但每种类型生成一份代码。
+
+## 常见错误
+
+把 trait 对象直接放在栈上（大小未知）：
+
+```rust
+let shape: dyn Shape = Circle { radius: 1.0 }; // ❌ size not known
+```
+
+trait 对象必须在指针后面：`Box<dyn Shape>`、`&dyn Shape` 等。
+
+## 练习
+
+- 给 `Shape` 再加一个 `Triangle` 实现，放进同一个 `Vec`。
+- 写一个函数返回面积最大的形状的名字。
+
+## 小结
+
+`dyn Trait` 提供运行时多态，适合“异构集合”和插件式设计；性能敏感且类型已知时优先用泛型。
+
+## 下一步
+
+闭包是 Rust 里随处可见的“匿名函数 + 捕获环境”。下一章学习闭包。

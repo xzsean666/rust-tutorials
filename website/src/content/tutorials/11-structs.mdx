@@ -1,0 +1,87 @@
+---
+title: "结构体与方法"
+description: "用 struct 给数据建模，用 impl 定义方法和关联函数。"
+stage: "modeling"
+order: 110
+level: "beginner"
+estimatedMinutes: 30
+tags: ["复合类型", "结构体"]
+rustConcepts: ["struct", "impl", "method", "derive"]
+prerequisites: ["10-lifetimes"]
+exampleDir: "10_structs"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 结构体与方法
+
+## 你会学到什么
+
+- 用 `struct` 把相关字段组合成一个类型。
+- 用 `impl` 块定义方法（带 `self`）和关联函数（不带 `self`）。
+- 用 `#[derive(...)]` 自动获得 `Debug`、`Clone`、`PartialEq` 等能力。
+
+## 最小示例
+
+```rust
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Rectangle {
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_10_structs
+cargo test -p rt_10_structs
+```
+
+## 代码讲解
+
+关联函数常用作构造器，用 `Self` 指代当前类型：
+
+```rust
+fn new(width: u32, height: u32) -> Self {
+    Self { width, height }
+}
+```
+
+方法的第一个参数是 `&self`（只读）、`&mut self`（可修改）或 `self`（消费所有权）。
+
+`#[derive(Debug, Clone, PartialEq)]` 让结构体能被 `{:?}` 打印、`.clone()` 复制、用 `==` 比较，省去手写样板代码。
+
+## 常见错误
+
+忘记 `&` 直接写 `self`，会意外消费所有权：
+
+```rust
+impl Rectangle {
+    fn area(self) -> u32 { // 调用后 rectangle 被移动
+        self.width * self.height
+    }
+}
+```
+
+只读方法几乎总是用 `&self`。
+
+## 练习
+
+- 给 `Rectangle` 加一个 `can_hold(&self, other: &Rectangle) -> bool`。
+- 加一个关联函数 `square(size: u32) -> Rectangle`。
+
+## 小结
+
+结构体是 Rust 建模的基本单元，方法和关联函数组织行为，`derive` 自动生成常用 trait 实现。
+
+## 下一步
+
+当数据有“多种形态”时，枚举比结构体更合适。下一章学习枚举与 Option。

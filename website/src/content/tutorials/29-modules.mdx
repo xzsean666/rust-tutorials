@@ -1,0 +1,79 @@
+---
+title: "模块系统"
+description: "用 mod、pub 和 use 组织代码,控制可见性。"
+stage: "crate"
+order: 290
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["工程组织", "模块"]
+rustConcepts: ["mod", "pub", "use", "path"]
+prerequisites: ["28-shared-state"]
+exampleDir: "28_modules"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 模块系统
+
+## 你会学到什么
+
+- 用 `mod` 声明模块,模块可以拆成独立文件。
+- 默认私有,用 `pub` 显式对外暴露。
+- 用 `use` 把路径引入当前作用域,少写前缀。
+
+## 最小示例
+
+```rust
+mod geometry;          // 对应 src/geometry.rs
+use geometry::area;    // 引入子模块
+
+fn main() {
+    println!("{}", area::rectangle(2.0, 3.0));
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_28_modules
+cargo test -p rt_28_modules
+```
+
+## 代码讲解
+
+模块树和文件系统对应:`mod geometry;` 会去找 `src/geometry.rs`,其中的 `pub mod area;` 又对应 `src/geometry/area.rs`。
+
+```rust
+// src/geometry.rs
+pub mod area;
+pub fn describe() -> &'static str { "geometry module" }
+```
+
+可见性是分层的:只有标了 `pub` 的项才能被父模块访问。`use` 只是创建一个简写别名,不改变可见性。路径以 `crate::` 开头表示从 crate 根算起,`super::` 表示上一层。
+
+## 常见错误
+
+忘记把要对外使用的项标成 `pub`:
+
+```rust
+mod geometry {
+    fn area() -> f64 { 1.0 } // 私有
+}
+geometry::area(); // ❌ function `area` is private
+```
+
+加上 `pub fn area`。
+
+## 练习
+
+- 给 `geometry` 加一个 `perimeter` 子模块。
+- 用 `pub use` 把深层函数“重导出”到模块顶层,简化调用路径。
+
+## 小结
+
+模块系统用 `mod`/`pub`/`use` 把代码分层组织,默认私有的设计让你显式地决定 API 边界。
+
+## 下一步
+
+把可复用逻辑抽成库 crate,再用 workspace 管理多个 crate。下一章学习库 crate 与 workspace。

@@ -1,0 +1,80 @@
+---
+title: "并发任务"
+description: "用 join! 和 spawn 让多个异步任务并发执行。"
+stage: "async"
+order: 340
+level: "advanced"
+estimatedMinutes: 30
+tags: ["异步", "并发", "tokio"]
+rustConcepts: ["join!", "tokio::spawn", "JoinHandle", "concurrency"]
+prerequisites: ["33-async-await"]
+exampleDir: "33_async_tasks"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 并发任务
+
+## 你会学到什么
+
+- `tokio::join!` 让多个 Future 并发推进,总耗时约等于最慢的那个。
+- `tokio::spawn` 把任务交给运行时调度,返回 `JoinHandle`。
+- 并发(concurrency)和并行(parallelism)的区别。
+
+## 最小示例
+
+```rust
+let (a, b) = tokio::join!(fetch(1), fetch(2)); // 两个同时进行
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_33_async_tasks
+cargo test -p rt_33_async_tasks
+```
+
+## 代码讲解
+
+顺序 `.await` 会一个等完再等下一个;`join!` 则同时驱动所有 Future:
+
+```rust
+async fn run_concurrently() -> Vec<u32> {
+    let (first, second, third) = tokio::join!(work(1, 30), work(2, 10), work(3, 20));
+    vec![first, second, third]
+}
+```
+
+`join!` 按参数顺序返回结果,和谁先完成无关。
+
+`spawn` 适合“发射后不管”或需要 `JoinHandle` 的场景:
+
+```rust
+let handle = tokio::spawn(work(1, 5));
+let value = handle.await.unwrap();
+```
+
+注意 `spawn` 的任务必须 `'static` 且 `Send`,因为它可能在另一个线程上运行。
+
+## 常见错误
+
+误以为 `join!` 会按完成顺序返回:
+
+```rust
+let (a, b) = tokio::join!(slow(), fast());
+// a 仍然是 slow() 的结果,顺序由参数位置决定
+```
+
+## 练习
+
+- 用 `join!` 并发请求 3 个 id,对比顺序 await 的总耗时。
+- 用 `spawn` 启动 5 个任务,收集所有 `JoinHandle` 的结果求和。
+
+## 小结
+
+`join!` 并发等待一组 Future,`spawn` 把任务交给调度器。异步并发用单线程也能重叠等待时间。
+
+## 下一步
+
+接下来进入生态库阶段,学习 serde、anyhow 和 clap。

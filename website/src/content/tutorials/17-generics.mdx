@@ -1,0 +1,86 @@
+---
+title: "泛型"
+description: "用泛型参数写出适用于多种类型的函数和结构体。"
+stage: "generics"
+order: 170
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["泛型", "抽象"]
+rustConcepts: ["generics", "type parameter", "trait bound"]
+prerequisites: ["16-custom-errors"]
+exampleDir: "16_generics"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 泛型
+
+## 你会学到什么
+
+- 用 `<T>` 声明类型参数，写一份代码服务多种类型。
+- 用 trait bound（如 `T: PartialOrd`）约束泛型能做什么。
+- 泛型在编译期单态化，没有运行时开销。
+
+## 最小示例
+
+```rust
+fn largest<T: PartialOrd + Copy>(items: &[T]) -> Option<T> {
+    let mut max = *items.first()?;
+    for &item in items {
+        if item > max { max = item; }
+    }
+    Some(max)
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_16_generics
+cargo test -p rt_16_generics
+```
+
+## 代码讲解
+
+`T: PartialOrd + Copy` 是 trait bound：`PartialOrd` 让 `>` 可用，`Copy` 让 `*item` 能按位复制。没有约束的泛型几乎什么都做不了，因为编译器不知道这个类型支持哪些操作。
+
+结构体也可以是泛型的：
+
+```rust
+struct Pair<T> {
+    first: T,
+    second: T,
+}
+```
+
+调用 `largest(&[3, 7, 2])` 时编译器会为 `i32` 生成一份专用代码（单态化），所以泛型既灵活又零成本。
+
+## 常见错误
+
+对泛型用了未声明的能力：
+
+```rust
+fn largest<T>(items: &[T]) -> T {
+    let mut max = items[0];
+    for item in items {
+        if item > max { /* ❌ T 不一定能比较 */ }
+    }
+    max
+}
+```
+
+加上 `T: PartialOrd + Copy` 即可。
+
+## 练习
+
+- 写一个泛型函数返回切片中最小的元素。
+- 给 `Pair<T>` 加一个要求 `T: std::fmt::Display` 的方法，打印两个字段。
+
+## 小结
+
+泛型用类型参数复用逻辑，trait bound 声明所需能力，单态化保证零运行时开销。
+
+## 下一步
+
+trait bound 背后的 `trait` 本身才是 Rust 抽象的核心。下一章深入 trait。

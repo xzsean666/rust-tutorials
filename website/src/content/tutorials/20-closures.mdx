@@ -1,0 +1,90 @@
+---
+title: "闭包"
+description: "理解闭包如何捕获环境，以及 Fn、FnMut、FnOnce 的区别。"
+stage: "generics"
+order: 200
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["泛型", "闭包", "函数式"]
+rustConcepts: ["closure", "Fn", "FnMut", "FnOnce", "move"]
+prerequisites: ["19-trait-objects"]
+exampleDir: "19_closures"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 闭包
+
+## 你会学到什么
+
+- 闭包是能捕获周围变量的匿名函数。
+- 按捕获方式分为 `Fn`（只读）、`FnMut`（可变）、`FnOnce`（消费）。
+- `move` 把捕获的变量移动进闭包，常用于返回闭包或跨线程。
+
+## 最小示例
+
+```rust
+let make_adder = |n: i32| move |x: i32| x + n;
+let add_ten = make_adder(10);
+assert_eq!(add_ten(3), 13);
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_19_closures
+cargo test -p rt_19_closures
+```
+
+## 代码讲解
+
+把闭包当参数，用泛型 + trait bound 接收：
+
+```rust
+fn apply<F: Fn(i32) -> i32>(function: F, value: i32) -> i32 {
+    function(value)
+}
+```
+
+返回闭包用 `impl Fn`，并用 `move` 把捕获值的所有权交给闭包：
+
+```rust
+fn make_adder(n: i32) -> impl Fn(i32) -> i32 {
+    move |value| value + n
+}
+```
+
+需要修改捕获状态时，闭包是 `FnMut`：
+
+```rust
+fn make_counter() -> impl FnMut() -> i32 {
+    let mut count = 0;
+    move || { count += 1; count }
+}
+```
+
+## 常见错误
+
+返回借用了局部变量的闭包却没加 `move`：
+
+```rust
+fn make_adder(n: i32) -> impl Fn(i32) -> i32 {
+    |value| value + n // ❌ n 在函数结束后失效
+}
+```
+
+加上 `move` 让闭包获得 `n` 的所有权。
+
+## 练习
+
+- 写一个函数接受 `FnMut` 闭包并调用它三次。
+- 用闭包 + `make_adder` 组合出一个“先加 1 再乘 2”的函数。
+
+## 小结
+
+闭包 = 匿名函数 + 环境捕获。`Fn`/`FnMut`/`FnOnce` 描述捕获强度，`move` 转移所有权。
+
+## 下一步
+
+闭包最常和迭代器搭配。下一章进入迭代器与函数式风格。

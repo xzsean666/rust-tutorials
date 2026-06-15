@@ -1,0 +1,79 @@
+---
+title: "Result 与错误处理"
+description: "用 Result 和 ? 运算符传播可恢复错误。"
+stage: "std"
+order: 150
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["标准库", "错误处理"]
+rustConcepts: ["Result", "?", "panic", "unwrap_or"]
+prerequisites: ["14-collections"]
+exampleDir: "14_error_handling"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# Result 与错误处理
+
+## 你会学到什么
+
+- `Result<T, E>` 表示“可能失败”的操作。
+- `?` 运算符在出错时提前返回，让主流程保持清爽。
+- 区分可恢复错误（`Result`）和不可恢复错误（`panic!`）。
+
+## 最小示例
+
+```rust
+fn parse_sum(input: &str) -> Result<i32, std::num::ParseIntError> {
+    let mut total = 0;
+    for token in input.split_whitespace() {
+        total += token.parse::<i32>()?; // 失败就提前返回 Err
+    }
+    Ok(total)
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_14_error_handling
+cargo test -p rt_14_error_handling
+```
+
+## 代码讲解
+
+`?` 等价于“成功就取出值，失败就 `return Err(...)`”，避免层层嵌套的 `match`。它只能用在返回 `Result`（或 `Option`）的函数里。
+
+当你能给出合理默认值时，用 `unwrap_or`：
+
+```rust
+let value = token.parse::<i32>().unwrap_or(0);
+```
+
+`unwrap()` / `expect()` 在 `Err` 时会 panic，适合“逻辑上不可能失败”的场景或快速原型，不要用在正常错误路径上。
+
+## 常见错误
+
+在返回 `()` 的 `main` 里直接用 `?`：
+
+```rust
+fn main() {
+    let n = "x".parse::<i32>()?; // ❌ main 默认不返回 Result
+}
+```
+
+把 `main` 的返回类型改成 `Result<(), Box<dyn std::error::Error>>` 即可使用 `?`。
+
+## 练习
+
+- 写一个函数把 `&str` 解析成 `f64`，失败返回 `Result`。
+- 把示例里的 `parse_sum` 改成遇到第一个错误就附带出错的 token 信息。
+
+## 小结
+
+`Result` 把错误编码进类型，`?` 让传播错误几乎零成本。可恢复用 `Result`，真正的 bug 才 `panic`。
+
+## 下一步
+
+标准库错误类型不总够用。下一章学习定义自己的错误类型。

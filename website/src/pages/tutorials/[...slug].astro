@@ -26,20 +26,26 @@ const examplePath = entry.data.exampleDir ? `/examples/#${entry.data.exampleDir}
 <BaseLayout title={entry.data.title} description={entry.data.description}>
   <main class="page tutorial-layout">
     <aside class="sidebar" aria-label="章节导航">
-      <nav>
-        {
-          tutorials.map((tutorial) => (
-            <a
-              href={tutorialPath(tutorial)}
-              aria-current={tutorial.id === entry.id ? "page" : undefined}
-              data-progress-id={tutorial.id}
-              data-read-id={tutorial.id}
-            >
-              {tutorial.data.title}
-            </a>
-          ))
-        }
-      </nav>
+      <details class="chapter-nav" open>
+        <summary>
+          <span class="chapter-nav__label">章节目录</span>
+          <span class="chapter-nav__current">{entry.data.title}</span>
+        </summary>
+        <nav>
+          {
+            tutorials.map((tutorial) => (
+              <a
+                href={tutorialPath(tutorial)}
+                aria-current={tutorial.id === entry.id ? "page" : undefined}
+                data-progress-id={tutorial.id}
+                data-read-id={tutorial.id}
+              >
+                {tutorial.data.title}
+              </a>
+            ))
+          }
+        </nav>
+      </details>
     </aside>
 
     <article
@@ -112,4 +118,23 @@ const examplePath = entry.data.exampleDir ? `/examples/#${entry.data.exampleDir}
       </nav>
     </aside>
   </main>
+  <script is:inline>
+    (() => {
+      const nav = document.querySelector(".chapter-nav");
+      if (!nav) return;
+      // 移动端默认折叠,桌面端展开;无 JS 时 HTML 的 open 属性保证默认展开。
+      const mobile = window.matchMedia("(max-width: 960px)");
+      const apply = () => {
+        nav.open = !mobile.matches;
+      };
+      apply();
+      mobile.addEventListener("change", apply);
+      // 在移动端点开后,选中章节时自动收起,体验更顺。
+      nav.querySelectorAll("nav a").forEach((link) => {
+        link.addEventListener("click", () => {
+          if (mobile.matches) nav.open = false;
+        });
+      });
+    })();
+  </script>
 </BaseLayout>

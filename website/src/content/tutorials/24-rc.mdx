@@ -1,0 +1,78 @@
+---
+title: "Rc 共享所有权"
+description: "用 Rc<T> 让多个所有者共享同一份只读数据。"
+stage: "smart-pointers"
+order: 240
+level: "intermediate"
+estimatedMinutes: 25
+tags: ["智能指针", "Rc"]
+rustConcepts: ["Rc", "reference counting", "strong_count"]
+prerequisites: ["23-box"]
+exampleDir: "23_rc"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# Rc 共享所有权
+
+## 你会学到什么
+
+- `Rc<T>` 通过引用计数允许多个所有者共享同一份数据。
+- `Rc::clone` 只增加计数,不复制底层数据,代价很小。
+- `Rc` 只用于单线程;跨线程要用 `Arc`(并发阶段介绍)。
+
+## 最小示例
+
+```rust
+use std::rc::Rc;
+
+let shared = Rc::new(String::from("data"));
+let a = Rc::clone(&shared);
+println!("count = {}", Rc::strong_count(&shared)); // 2
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_23_rc
+cargo test -p rt_23_rc
+```
+
+## 代码讲解
+
+`Rc::clone` 是浅拷贝——只是把引用计数加一,所有克隆指向同一块堆数据:
+
+```rust
+let a = Rc::clone(&shared);
+let b = Rc::clone(&shared);
+// strong_count == 3
+```
+
+当最后一个 `Rc` 被 drop、计数归零时,数据才被释放。`Rc::ptr_eq` 可以判断两个 `Rc` 是否指向同一块内存。
+
+> 习惯上写 `Rc::clone(&x)` 而不是 `x.clone()`,以强调这是“增加引用计数”而非深拷贝。
+
+## 常见错误
+
+想通过 `Rc` 修改共享数据:
+
+```rust
+let shared = Rc::new(vec![1, 2, 3]);
+shared.push(4); // ❌ Rc<T> 默认不可变
+```
+
+`Rc<T>` 只给共享只读访问。要共享 + 可变,需要 `Rc<RefCell<T>>`(下一章)。
+
+## 练习
+
+- 构造一个树,让两个父节点共享同一个子节点。
+- 打印每次 `clone` 和 `drop` 后的 `strong_count`,观察变化。
+
+## 小结
+
+`Rc<T>` 用引用计数实现共享所有权,适合“一份数据、多处只读引用”的场景,仅限单线程。
+
+## 下一步
+
+`Rc` 共享只读,要在共享时还能修改,就需要内部可变性。下一章学习 `RefCell`。

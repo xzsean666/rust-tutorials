@@ -1,0 +1,81 @@
+---
+title: "迭代器与适配器"
+description: "用 map、filter、collect、fold 写出声明式的数据处理。"
+stage: "iterators"
+order: 210
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["迭代器", "函数式"]
+rustConcepts: ["Iterator", "map", "filter", "collect", "fold"]
+prerequisites: ["20-closures"]
+exampleDir: "20_iterators"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 迭代器与适配器
+
+## 你会学到什么
+
+- 迭代器是惰性的：适配器只有在被消费时才真正执行。
+- `map` / `filter` 变换数据，`collect` / `sum` / `fold` 收尾。
+- 用迭代器链替代手写循环，代码更短也更清晰。
+
+## 最小示例
+
+```rust
+let evens: Vec<i32> = (1..=10).filter(|n| n % 2 == 0).collect();
+// [2, 4, 6, 8, 10]
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_20_iterators
+cargo test -p rt_20_iterators
+```
+
+## 代码讲解
+
+适配器可以链式组合，最后用一个“消费者”收尾：
+
+```rust
+fn sum_of_squares(values: &[i32]) -> i32 {
+    values.iter().map(|value| value * value).sum()
+}
+```
+
+`fold` 是最通用的消费者，能表达任意累积逻辑，比如一次遍历同时求最小值和最大值：
+
+```rust
+values.iter().fold(None, |acc, &value| match acc {
+    None => Some((value, value)),
+    Some((min, max)) => Some((min.min(value), max.max(value))),
+})
+```
+
+`iter()` 产出 `&T`，`into_iter()` 产出 `T`（消费集合），`iter_mut()` 产出 `&mut T`。
+
+## 常见错误
+
+写完适配器却忘了消费，迭代器什么都不做：
+
+```rust
+values.iter().map(|v| println!("{v}")); // ❌ 惰性，不会执行
+```
+
+加一个消费者（`.collect()`、`.for_each(...)`、`.count()` 等）或用 `for` 循环。
+
+## 练习
+
+- 用迭代器求一个 `&[&str]` 里所有字符串的总长度。
+- 用 `filter_map` 把 `&[&str]` 中能解析成数字的元素收集成 `Vec<i32>`。
+
+## 小结
+
+迭代器把“怎么循环”交给标准库，你只描述“做什么”。惰性 + 零成本抽象让它既优雅又快。
+
+## 下一步
+
+你也可以让自己的类型变成迭代器。下一章实现 `Iterator` trait。

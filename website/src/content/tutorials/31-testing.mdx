@@ -1,0 +1,97 @@
+---
+title: "测试"
+description: "用单元测试和集成测试保证代码正确。"
+stage: "quality"
+order: 310
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["工程质量", "测试"]
+rustConcepts: ["#[test]", "assert_eq!", "integration test", "should_panic"]
+prerequisites: ["30-library"]
+exampleDir: "30_testing"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 测试
+
+## 你会学到什么
+
+- 用 `#[test]` 标注测试函数,`cargo test` 自动运行。
+- 单元测试放在被测模块内,可访问私有项;集成测试放在 `tests/` 目录,只用公开 API。
+- 用 `assert!`、`assert_eq!` 和 `#[should_panic]` 表达期望。
+
+## 最小示例
+
+```rust
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn adds() {
+        assert_eq!(2 + 3, 5);
+    }
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_30_testing
+cargo test -p rt_30_testing
+```
+
+## 代码讲解
+
+单元测试惯例上放在同一文件的 `#[cfg(test)] mod tests` 里,`#[cfg(test)]` 保证测试代码不会进入正式构建:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn detects_even() {
+        assert!(is_even(4));
+    }
+}
+```
+
+集成测试放在 crate 根的 `tests/` 目录,每个文件是一个独立 crate,只能访问 `pub` API——这正好验证你的公开接口好不好用:
+
+```rust
+// tests/integration.rs
+use rt_30_testing::add;
+#[test]
+fn adds_across_crate_boundary() {
+    assert_eq!(add(10, 20), 30);
+}
+```
+
+`#[should_panic(expected = "...")]` 断言某段代码会 panic 且信息匹配。
+
+## 常见错误
+
+忘记 `use super::*;`,测试里访问不到被测函数:
+
+```rust
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn adds() { assert_eq!(add(2, 3), 5); } // ❌ add 不在作用域
+}
+```
+
+在 `mod tests` 顶部加 `use super::*;`。
+
+## 练习
+
+- 给 `add` 写一个测试覆盖负数相加。
+- 在 `tests/` 里新增一个文件,测试 `is_even` 的边界值。
+
+## 小结
+
+`cargo test` 一条命令跑遍单元测试、集成测试和文档测试。单元测试查内部,集成测试查公开 API。
+
+## 下一步
+
+好的库还要有好文档。下一章学习文档注释与文档测试。

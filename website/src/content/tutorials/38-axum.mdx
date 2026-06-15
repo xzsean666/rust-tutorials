@@ -1,0 +1,90 @@
+---
+title: "Web 服务:axum"
+description: "用 axum 构建路由和 JSON 接口,并用 oneshot 测试。"
+stage: "web-db"
+order: 380
+level: "advanced"
+estimatedMinutes: 35
+tags: ["Web", "axum", "异步"]
+rustConcepts: ["axum", "Router", "handler", "extractor", "Json"]
+prerequisites: ["37-clap"]
+exampleDir: "37_axum"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# Web 服务:axum
+
+## 你会学到什么
+
+- 用 `Router` 把路径映射到异步 handler。
+- 用提取器(extractor)如 `Path` 取出请求数据,用 `Json` 返回结构化响应。
+- 用 `tower` 的 `oneshot` 在不开端口的情况下测试整个应用。
+
+## 最小示例
+
+```rust
+fn app() -> Router {
+    Router::new()
+        .route("/", get(root))
+        .route("/greet/{name}", get(greet))
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_37_axum   # 监听 http://127.0.0.1:3000
+cargo test -p rt_37_axum
+```
+
+依赖:
+
+```toml
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+```
+
+## 代码讲解
+
+handler 是普通的 async 函数,参数就是提取器。`Path(name)` 从 URL 里取出 `{name}`,返回 `Json<T>` 会自动序列化并设置 `Content-Type`:
+
+```rust
+async fn greet(Path(name): Path<String>) -> Json<Greeting> {
+    Json(Greeting { message: format!("Hello, {name}!") })
+}
+```
+
+把路由抽成 `app() -> Router`,测试时就能用 `oneshot` 直接把请求喂给应用、检查响应,完全不需要真实网络:
+
+```rust
+let response = app()
+    .oneshot(Request::builder().uri("/greet/Rust").body(Body::empty()).unwrap())
+    .await
+    .unwrap();
+assert_eq!(response.status(), StatusCode::OK);
+```
+
+## 常见错误
+
+axum 0.8 的路径参数用花括号 `{name}`,旧版本用 `:name`。版本不匹配会导致路由注册 panic。
+
+## 练习
+
+- 加一个 `POST /tasks` 接口,用 `Json` 提取请求体。
+- 给 `greet` 加一个查询参数 `?lang=en`,用 `Query` 提取器读取。
+
+## 小结
+
+axum 把路由、提取器和异步 handler 组合成类型安全的 Web 框架,`oneshot` 让端到端测试既快又简单。
+
+## 下一步
+
+真实服务需要持久化数据。下一章用 SQLite 做数据库操作。

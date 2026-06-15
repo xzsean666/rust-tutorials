@@ -1,0 +1,89 @@
+---
+title: "anyhow 与 thiserror"
+description: "用 thiserror 定义库错误,用 anyhow 聚合应用错误。"
+stage: "ecosystem"
+order: 360
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["生态库", "错误处理"]
+rustConcepts: ["thiserror", "anyhow", "Error derive", "?"]
+prerequisites: ["35-serde"]
+exampleDir: "35_error_libs"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# anyhow 与 thiserror
+
+## 你会学到什么
+
+- `thiserror` 用派生宏自动实现 `Display` 和 `Error`,省去样板代码。
+- `anyhow` 提供一个“万能错误类型”,适合应用层快速聚合。
+- 经验法则:库用 thiserror(精确),应用用 anyhow(方便)。
+
+## 最小示例
+
+```rust
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+enum ConfigError {
+    #[error("配置为空")]
+    Empty,
+    #[error("端口不是数字: {0}")]
+    NotANumber(String),
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_35_error_libs
+cargo test -p rt_35_error_libs
+```
+
+依赖:
+
+```toml
+[dependencies]
+anyhow = "1"
+thiserror = "2"
+```
+
+## 代码讲解
+
+回忆“自定义错误类型”那一章,我们手写了 `Display` 和 `Error`。`thiserror` 用 `#[error("...")]` 把这些一行搞定,`{0}` 引用元组字段:
+
+```rust
+#[error("端口超出范围: {0}")]
+OutOfRange(u32),
+```
+
+应用层函数返回 `anyhow::Result<T>`,`?` 能自动把任何实现了 `Error` 的类型转换进去:
+
+```rust
+fn load_config(input: &str) -> anyhow::Result<u16> {
+    let port = parse_port(input)?; // ConfigError 自动转成 anyhow::Error
+    Ok(port)
+}
+```
+
+`anyhow` 还支持 `.context("加载配置失败")` 给错误加上下文,排查问题时非常有用。
+
+## 常见错误
+
+在库的公开 API 里直接用 `anyhow::Error` 当返回类型,会让调用方无法按变体匹配错误。库应当暴露具体的 thiserror 类型。
+
+## 练习
+
+- 给 `ConfigError` 加一个 `#[error("缺少字段: {0}")]` 变体。
+- 在 `load_config` 里用 `.context(...)` 给错误补充上下文。
+
+## 小结
+
+thiserror 让定义精确错误几乎零样板,anyhow 让应用层聚合错误轻松自如,二者常配合使用。
+
+## 下一步
+
+接着学习用 clap 解析命令行参数。

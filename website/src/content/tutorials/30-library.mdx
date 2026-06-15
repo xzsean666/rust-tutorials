@@ -1,0 +1,82 @@
+---
+title: "库 crate 与 workspace"
+description: "区分 lib 与 bin,用 workspace 管理多个 crate。"
+stage: "crate"
+order: 300
+level: "intermediate"
+estimatedMinutes: 25
+tags: ["工程组织", "crate", "workspace"]
+rustConcepts: ["lib crate", "bin crate", "workspace", "pub API"]
+prerequisites: ["29-modules"]
+exampleDir: "29_library"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 库 crate 与 workspace
+
+## 你会学到什么
+
+- 一个 package 可以同时包含库(`lib.rs`)和二进制(`main.rs`)。
+- 库 crate 通过 `pub` API 对外提供可复用逻辑。
+- workspace 把多个相关 crate 放在一个仓库里统一管理。
+
+## 最小示例
+
+```rust
+// src/lib.rs —— 库,对外暴露 API
+pub fn celsius_to_fahrenheit(c: f64) -> f64 {
+    c * 9.0 / 5.0 + 32.0
+}
+```
+
+```rust
+// src/main.rs —— 二进制,按 crate 名引用库
+use rt_29_library::celsius_to_fahrenheit;
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_29_library
+cargo test -p rt_29_library
+```
+
+## 代码讲解
+
+库 crate 的根是 `lib.rs`,里面 `pub` 的项就是公开 API;二进制 crate 的根是 `main.rs`。当二者在同一个 package 时,`main.rs` 用 crate 名引用库:
+
+```rust
+use rt_29_library::{celsius_to_fahrenheit, fahrenheit_to_celsius};
+```
+
+本教程的 `examples/` 目录本身就是一个 workspace。根 `Cargo.toml` 用 `[workspace]` 列出所有成员,它们共享同一个 `Cargo.lock` 和 `target/`:
+
+```toml
+[workspace]
+members = ["00_hello_world", "01_cargo_project", "..."]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+```
+
+成员用 `version.workspace = true` 继承公共配置,避免重复。
+
+## 常见错误
+
+在 workspace 成员里各写各的依赖版本,导致版本漂移。可以用 `[workspace.dependencies]` 统一声明,成员再用 `dep.workspace = true` 继承。
+
+## 练习
+
+- 把 `29_library` 的转换函数补一个 `kelvin_to_celsius`。
+- 新建一个 crate 依赖 `rt_29_library`,在 `Cargo.toml` 里用 `path` 引用它。
+
+## 小结
+
+库 crate 提供可复用 API,二进制 crate 提供入口,workspace 让多个 crate 共享配置与构建产物。
+
+## 下一步
+
+工程化的下一步是测试与文档。下一章进入质量保障阶段。

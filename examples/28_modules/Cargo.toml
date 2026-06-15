@@ -1,0 +1,5 @@
+[package]
+name = "rt_28_modules"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true

@@ -1,0 +1,79 @@
+---
+title: "FFI:与 C 互操作"
+description: "用 extern \"C\" 调用 C 函数,并把 Rust 函数导出给 C。"
+stage: "advanced"
+order: 420
+level: "advanced"
+estimatedMinutes: 30
+tags: ["进阶", "FFI"]
+rustConcepts: ["extern C", "FFI", "no_mangle", "ABI"]
+prerequisites: ["41-unsafe"]
+exampleDir: "41_ffi"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# FFI:与 C 互操作
+
+## 你会学到什么
+
+- 用 `unsafe extern "C"` 声明要调用的 C 函数。
+- 调用外部函数是 unsafe,通常包成安全接口。
+- 用 `#[unsafe(no_mangle)] extern "C"` 把 Rust 函数导出给 C。
+
+## 最小示例
+
+```rust
+unsafe extern "C" {
+    fn abs(input: i32) -> i32;
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_41_ffi
+cargo test -p rt_41_ffi
+```
+
+## 代码讲解
+
+`extern "C"` 指定 C 的调用约定(ABI)。edition 2024 要求 extern 块本身标注 `unsafe`,因为编译器无法验证外部声明是否正确:
+
+```rust
+fn safe_abs(value: i32) -> i32 {
+    // SAFETY: abs 对普通 i32 有定义。
+    unsafe { abs(value) }
+}
+```
+
+反过来,把 Rust 函数暴露给 C 需要稳定的符号名和 C ABI:
+
+```rust
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_add(left: i32, right: i32) -> i32 {
+    left + right
+}
+```
+
+`no_mangle` 阻止编译器改写符号名(edition 2024 写成 `#[unsafe(no_mangle)]`),这样 C 代码就能按 `rust_add` 链接到它。
+
+跨语言传递字符串、结构体时要特别小心内存布局和所有权;复杂场景常借助 `bindgen` / `cbindgen` 自动生成绑定。
+
+## 常见错误
+
+跨 FFI 边界传 Rust 的 `String` 或 `&str`,它们不是 C 兼容布局。应使用 `*const c_char` + `std::ffi::CString` / `CStr` 转换。
+
+## 练习
+
+- 声明并调用 C 的 `sqrt`(来自 libm/libc),封装成安全函数。
+- 导出一个 `rust_mul` 函数,写测试确认从 Rust 调用正确。
+
+## 小结
+
+FFI 通过 `extern "C"` 和稳定 ABI 打通 Rust 与 C。调用外部代码是 unsafe,导出要 `no_mangle`,字符串/结构体跨界需谨慎处理布局。
+
+## 下一步
+
+最后一站:用一个真实项目把所学综合起来。

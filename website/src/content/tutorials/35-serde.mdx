@@ -1,0 +1,85 @@
+---
+title: "serde:序列化与反序列化"
+description: "用 serde 和 serde_json 在结构体与 JSON 之间转换。"
+stage: "ecosystem"
+order: 350
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["生态库", "serde", "JSON"]
+rustConcepts: ["serde", "derive", "Serialize", "Deserialize"]
+prerequisites: ["34-async-tasks"]
+exampleDir: "34_serde"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# serde:序列化与反序列化
+
+## 你会学到什么
+
+- `serde` 是 Rust 事实标准的序列化框架。
+- 给结构体派生 `Serialize` / `Deserialize` 即可与 JSON 互转。
+- `serde_json` 提供 `to_string` 和 `from_str`。
+
+## 最小示例
+
+```rust
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
+struct Task {
+    id: u32,
+    title: String,
+    done: bool,
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_34_serde
+cargo test -p rt_34_serde
+```
+
+依赖:
+
+```toml
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+```
+
+## 代码讲解
+
+`#[derive(Serialize, Deserialize)]` 让编译器为类型生成转换代码,之后:
+
+```rust
+let json = serde_json::to_string(&task)?;     // 结构体 -> JSON
+let task: Task = serde_json::from_str(&json)?; // JSON -> 结构体
+```
+
+serde 是“数据格式无关”的:同一套派生既能配 JSON,也能配 YAML、TOML、MessagePack 等,只要换对应的 crate。
+
+用 `#[serde(rename = "...")]`、`#[serde(default)]` 等属性可以微调字段名和默认值。
+
+## 常见错误
+
+忘了开启 `derive` 特性:
+
+```toml
+serde = "1" # ❌ 没有 features = ["derive"],#[derive(Serialize)] 不可用
+```
+
+## 练习
+
+- 给 `Task` 加一个 `tags: Vec<String>` 字段并序列化。
+- 用 `#[serde(rename = "is_done")]` 改变 JSON 里的字段名。
+
+## 小结
+
+serde 用派生宏把繁琐的序列化代码自动化,`serde_json` 是最常用的搭档。
+
+## 下一步
+
+错误处理也有趁手的库。下一章学习 anyhow 与 thiserror。

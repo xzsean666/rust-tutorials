@@ -1,0 +1,80 @@
+---
+title: "生命周期入门"
+description: "用生命周期标注表达引用之间的存活关系。"
+stage: "ownership"
+order: 100
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["所有权", "生命周期"]
+rustConcepts: ["lifetime", "'a", "lifetime elision"]
+prerequisites: ["09-slices"]
+exampleDir: "09_lifetimes"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 生命周期入门
+
+## 你会学到什么
+
+- 生命周期标注 `'a` 描述引用能存活多久，不改变实际生存期。
+- 当函数返回引用时，编译器需要知道它来自哪个入参。
+- 持有引用的结构体必须标注生命周期。
+
+## 最小示例
+
+```rust
+fn longest<'a>(left: &'a str, right: &'a str) -> &'a str {
+    if left.len() >= right.len() { left } else { right }
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_09_lifetimes
+cargo test -p rt_09_lifetimes
+```
+
+## 代码讲解
+
+`<'a>` 声明一个生命周期参数，`&'a str` 表示“这个引用至少活到 `'a`”。返回值标成 `'a`，编译器据此保证返回的引用不会比入参活得更久。
+
+结构体存引用时同样要标注：
+
+```rust
+struct Excerpt<'a> {
+    part: &'a str,
+}
+```
+
+这表示 `Excerpt` 不能比它引用的字符串活得更久。
+
+大多数简单场景下，编译器能自动推断生命周期（生命周期省略规则），所以前几章我们没写过 `'a`。
+
+## 常见错误
+
+返回一个指向函数内部局部变量的引用：
+
+```rust
+fn dangling() -> &String {
+    let s = String::from("temp");
+    &s // ❌ s 在函数结束时被释放
+}
+```
+
+修复方式是返回所有权（`String`）而不是引用。
+
+## 练习
+
+- 给 `Excerpt` 加一个方法，返回 `part` 的字节长度。
+- 写一个函数 `first<'a>(items: &'a [String]) -> &'a str` 返回第一个元素的切片。
+
+## 小结
+
+生命周期是借用检查器的“时间维度”，让返回引用和存引用的结构体都安全。多数时候靠省略规则自动推断。
+
+## 下一步
+
+掌握所有权后，进入用 struct 和 enum 给真实问题建模的阶段。

@@ -373,6 +373,55 @@ select {
   background: var(--accent-soft);
 }
 
+/* 桌面端:章节目录始终展开,隐藏折叠头(由 details[open] + 下面的规则保证)。 */
+.chapter-nav > summary {
+  display: none;
+}
+
+/* 移动端:把章节目录折叠成一个可点击的头部。 */
+@media (max-width: 960px) {
+  .chapter-nav > summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+    cursor: pointer;
+    list-style: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 0.6rem 0.75rem;
+    font-weight: 700;
+  }
+
+  .chapter-nav > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .chapter-nav > summary::after {
+    content: "▾";
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .chapter-nav[open] > summary::after {
+    content: "▴";
+  }
+
+  .chapter-nav__current {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: right;
+  }
+
+  .chapter-nav > nav {
+    margin-top: 0.5rem;
+    max-height: 60vh;
+    overflow: auto;
+  }
+}
+
 .article {
   min-width: 0;
   border: 1px solid var(--border);

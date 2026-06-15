@@ -1,0 +1,83 @@
+---
+title: "自定义迭代器"
+description: "为自己的类型实现 Iterator trait,复用全部适配器。"
+stage: "iterators"
+order: 220
+level: "intermediate"
+estimatedMinutes: 25
+tags: ["迭代器", "trait"]
+rustConcepts: ["Iterator", "next", "associated type"]
+prerequisites: ["21-iterators"]
+exampleDir: "21_custom_iterator"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 自定义迭代器
+
+## 你会学到什么
+
+- 实现 `Iterator` trait 只需要写一个 `next` 方法。
+- 一旦实现，就能免费用上 `map`、`filter`、`sum` 等所有适配器。
+- 关联类型 `type Item` 指定每次产出的值的类型。
+
+## 最小示例
+
+```rust
+impl Iterator for Counter {
+    type Item = u32;
+    fn next(&mut self) -> Option<u32> {
+        if self.current < self.max {
+            self.current += 1;
+            Some(self.current)
+        } else {
+            None
+        }
+    }
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_21_custom_iterator
+cargo test -p rt_21_custom_iterator
+```
+
+## 代码讲解
+
+`next` 返回 `Some(item)` 表示还有值，返回 `None` 表示结束。其余适配器方法都是基于 `next` 的默认实现，所以你的类型立刻就能：
+
+```rust
+let total: u32 = Counter::new(5).sum();
+let doubled: Vec<u32> = Counter::new(3).map(|v| v * 2).collect();
+for value in Counter::new(3) { /* ... */ }
+```
+
+实现了 `Iterator` 的类型可以直接用在 `for` 循环里，因为 `for` 本质就是反复调用 `next`。
+
+## 常见错误
+
+`next` 忘了推进状态，导致无限循环：
+
+```rust
+fn next(&mut self) -> Option<u32> {
+    Some(self.current) // ❌ 永远不结束
+}
+```
+
+确保每次调用都改变状态并最终返回 `None`。
+
+## 练习
+
+- 实现一个产出斐波那契数列前 n 项的迭代器。
+- 给 `Counter` 加一个起始值，从 `start` 数到 `max`。
+
+## 小结
+
+实现 `Iterator` 只需一个 `next`，就能接入整个迭代器生态，这是 Rust “小接口、大复用”的典型例子。
+
+## 下一步
+
+接下来进入智能指针，学习 `Box`、`Rc` 和 `RefCell`。

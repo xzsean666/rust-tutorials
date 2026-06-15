@@ -1,0 +1,8 @@
+[package]
+name = "rt_33_async_tasks"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }

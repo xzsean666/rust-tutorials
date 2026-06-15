@@ -1,0 +1,75 @@
+---
+title: "声明宏 macro_rules!"
+description: "用 macro_rules! 在编译期生成重复代码。"
+stage: "advanced"
+order: 400
+level: "advanced"
+estimatedMinutes: 30
+tags: ["进阶", "宏"]
+rustConcepts: ["macro_rules!", "metavariable", "repetition"]
+prerequisites: ["39-sqlite"]
+exampleDir: "39_macros"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 声明宏 macro_rules!
+
+## 你会学到什么
+
+- `macro_rules!` 通过“模式 => 展开”的规则生成代码。
+- 元变量如 `$x:expr`、`$t:ty` 捕获语法片段。
+- `$(...),*` 表示重复,可处理任意数量的参数。
+
+## 最小示例
+
+```rust
+macro_rules! my_max {
+    ($a:expr, $b:expr) => {
+        if $a >= $b { $a } else { $b }
+    };
+}
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_39_macros
+cargo test -p rt_39_macros
+```
+
+## 代码讲解
+
+宏在编译期展开,所以 `my_max!(3, 7)` 直接变成一个 `if` 表达式,没有函数调用开销,也不限制参数类型。
+
+重复用 `$(...)* ` 表达,下面的宏接受任意多个 `key => value`:
+
+```rust
+macro_rules! hashmap {
+    ($($key:expr => $value:expr),* $(,)?) => {{
+        let mut map = std::collections::HashMap::new();
+        $( map.insert($key, $value); )*
+        map
+    }};
+}
+```
+
+`$(,)?` 允许结尾多写一个逗号。常见元变量:`expr`(表达式)、`ident`(标识符)、`ty`(类型)、`tt`(token 树)。
+
+## 常见错误
+
+宏卫生(hygiene)问题:在宏里引入的变量名可能和调用处冲突。把内部变量包在 `{{ ... }}` 块里、用不易撞名的名字,可减少意外。
+
+## 练习
+
+- 写一个 `vec_of_strings!["a", "b"]` 宏,生成 `Vec<String>`。
+- 给 `my_max!` 扩展成支持 3 个及以上参数(提示:递归调用宏)。
+
+## 小结
+
+`macro_rules!` 用模式匹配生成代码,擅长消除重复和构造字面量,是声明宏的主力。
+
+## 下一步
+
+需要绕过借用检查器做底层操作时,要用 unsafe。下一章学习 unsafe 基础。
