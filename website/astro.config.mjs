@@ -9,10 +9,9 @@ export default defineConfig({
   },
   markdown: {
     shikiConfig: {
-      themes: {
-        light: "github-light",
-        dark: "github-dark",
-      },
+      // Code blocks are always rendered dark for consistent contrast,
+      // independent of the site's light/dark theme toggle.
+      theme: "github-dark",
       wrap: false,
     },
   },

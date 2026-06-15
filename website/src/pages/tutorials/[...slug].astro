@@ -137,4 +137,45 @@ const examplePath = entry.data.exampleDir ? `/examples/#${entry.data.exampleDir}
       });
     })();
   </script>
+  <script is:inline>
+    // 右侧目录:滚动时高亮当前所在的小节。
+    (() => {
+      const tocLinks = Array.from(document.querySelectorAll(".toc nav a"));
+      if (!tocLinks.length) return;
+      const byId = new Map(
+        tocLinks.map((a) => [decodeURIComponent(a.getAttribute("href").slice(1)), a]),
+      );
+      const headings = Array.from(
+        document.querySelectorAll(".article-content h2, .article-content h3"),
+      ).filter((h) => h.id && byId.has(h.id));
+      if (!headings.length) return;
+
+      let activeId = null;
+      const setActive = (id) => {
+        if (id === activeId) return;
+        activeId = id;
+        tocLinks.forEach((a) => a.removeAttribute("aria-current"));
+        byId.get(id)?.setAttribute("aria-current", "true");
+      };
+
+      let ticking = false;
+      const update = () => {
+        ticking = false;
+        const offset = 100;
+        let current = headings[0].id;
+        for (const h of headings) {
+          if (h.getBoundingClientRect().top - offset <= 0) current = h.id;
+          else break;
+        }
+        setActive(current);
+      };
+      const onScroll = () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(update);
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      update();
+    })();
+  </script>
 </BaseLayout>

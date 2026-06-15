@@ -34,6 +34,14 @@ function isActive(href: string) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
     <title>{pageTitle}</title>
     <script is:inline>
       (() => {
@@ -70,7 +78,17 @@ function isActive(href: string) {
               ))
             }
             <button class="theme-button" type="button" data-theme-toggle aria-label="切换主题">
-              ◐
+              <svg class="icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+              </svg>
+              <svg class="icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+              <svg class="icon-system" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                <path d="M8 21h8M12 17v4"></path>
+              </svg>
             </button>
           </nav>
         </div>
@@ -105,8 +123,18 @@ function isActive(href: string) {
           localStorage.setItem(key, JSON.stringify({ ...state, updatedAt: new Date().toISOString() }));
         };
         const resolveTheme = (theme) => (theme === "system" ? (media.matches ? "dark" : "light") : theme);
+        const themeColors = { light: "#f8fafc", dark: "#111318" };
+        const themeLabels = { light: "主题:亮色", dark: "主题:暗色", system: "主题:跟随系统" };
         const applyTheme = (theme) => {
-          document.documentElement.dataset.theme = resolveTheme(theme);
+          const resolved = resolveTheme(theme);
+          document.documentElement.dataset.theme = resolved;
+          const button = document.querySelector("[data-theme-toggle]");
+          if (button) {
+            button.dataset.themeState = theme;
+            button.setAttribute("aria-label", themeLabels[theme] || "切换主题");
+          }
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", themeColors[resolved]);
         };
         const updateProgressUi = () => {
           const state = read();
@@ -160,6 +188,48 @@ function isActive(href: string) {
         });
 
         updateProgressUi();
+
+        // 给文章代码块和示例命令加上"复制"按钮。
+        const copyIcon =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+        document.querySelectorAll(".article-content pre, pre.example-cmd").forEach((pre) => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "code-block";
+          pre.parentNode.insertBefore(wrapper, pre);
+          wrapper.appendChild(pre);
+
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "copy-button";
+          button.setAttribute("aria-label", "复制代码");
+          button.innerHTML = copyIcon + "<span>复制</span>";
+          wrapper.appendChild(button);
+
+          let timer;
+          button.addEventListener("click", async () => {
+            const code = pre.querySelector("code")?.innerText ?? pre.innerText;
+            try {
+              await navigator.clipboard.writeText(code);
+            } catch {
+              const range = document.createRange();
+              range.selectNodeContents(pre);
+              const sel = window.getSelection();
+              sel.removeAllRanges();
+              sel.addRange(range);
+              try {
+                document.execCommand("copy");
+              } catch {}
+              sel.removeAllRanges();
+            }
+            button.dataset.copied = "true";
+            button.querySelector("span").textContent = "已复制";
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+              button.dataset.copied = "false";
+              button.querySelector("span").textContent = "复制";
+            }, 1600);
+          });
+        });
       })();
     </script>
   </body>

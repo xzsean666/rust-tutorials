@@ -12,8 +12,12 @@ import BaseLayout from "../layouts/BaseLayout.astro";
       window.addEventListener("DOMContentLoaded", async () => {
         const target = document.querySelector("#search");
         try {
-          const pagefind = await import("/pagefind/pagefind-ui.js");
-          new pagefind.PagefindUI({
+          // pagefind-ui.js 是经典脚本,通过 import 触发副作用后挂在 window.PagefindUI 上,
+          // 没有 ESM 导出,因此必须使用全局而不是模块返回值。
+          await import("/pagefind/pagefind-ui.js");
+          const PagefindUI = window.PagefindUI;
+          if (typeof PagefindUI !== "function") throw new Error("PagefindUI 未加载");
+          new PagefindUI({
             element: "#search",
             showImages: false,
             translations: {
