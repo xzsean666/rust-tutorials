@@ -17,9 +17,10 @@ updatedAt: "2026-06-15"
 
 ## 你会学到什么
 
-- `Vec<T>` 是可增长的数组，最常用的集合。
-- `HashMap<K, V>` 用 `entry` API 优雅地“查找或插入”。
-- `String` 是可增长的 UTF-8 文本。
+- `Vec<T>` 是可增长的数组：`push`/`pop`、下标与 `get`、迭代、`retain` 过滤、排序。
+- `String` 是可增长的 UTF-8 文本：用 `push_str` 与 `format!` 构建。
+- `HashMap<K, V>` 用 `entry` API 优雅地“查找或插入”，常用来计数。
+- `HashSet<T>` 用来去重与做集合运算（交集等）。
 
 ## 最小示例
 
@@ -40,6 +41,22 @@ cargo test -p rt_13_collections
 
 ## 代码讲解
 
+示例围绕“成绩”这个小场景，把四种集合串起来。下方完整源码已自动嵌入，这里只点出关键之处。
+
+### Vec：摘要、过滤与排序
+
+`summarize` 用迭代器对 `Vec` 做汇总：`iter().sum()` 求和、`iter().max()` 取最大值，配合 `len()` 算平均。注意空切片时要手动避免除零。
+
+`passing_sorted` 展示两个高频方法：`retain` 原地过滤（只保留满足条件的元素），`sort_by` 用闭包自定义排序——这里用 `b.cmp(a)` 实现降序。
+
+下标 `v[i]` 越界会 panic，而 `v.get(i)` 返回 `Option<&T>`，越界时是 `None`，更安全。
+
+### String：用 `push_str` 与 `format!` 构建文本
+
+`format_scores` 把多条记录拼成一行：`push_str` 追加字符串切片，`format!` 生成带格式的临时字符串。`enumerate` 用来在非首项前插入 `", "` 分隔符。
+
+### HashMap：`entry` 计数
+
 `entry(key).or_insert(default)` 返回值的可变引用：键不存在时插入默认值，存在时直接拿到。这让计数器变得很简洁：
 
 ```rust
@@ -48,13 +65,19 @@ for word in text.split_whitespace() {
 }
 ```
 
-`Vec` 的排序去重组合很常见：
+`char_frequency` 同样用这个套路，把键换成 `char`，统计字符出现次数。注意 `HashMap` 的迭代顺序不固定，示例在打印前先收集成 `Vec` 再排序，输出才稳定。
+
+### HashSet：去重与交集
+
+`Vec` 的排序去重组合很常见，但 `dedup` 只能去掉**相邻**重复，所以要先排序：
 
 ```rust
 let mut result = values.to_vec();
 result.sort_unstable();
-result.dedup(); // 只去掉相邻重复，所以要先排序
+result.dedup();
 ```
+
+如果不关心顺序，`HashSet` 更直接。`common_count` 把两个切片各自收进 `HashSet`，再用 `intersection` 求公共元素个数。
 
 ## 常见错误
 
@@ -73,7 +96,7 @@ let n = counts.get("a") + 1; // ❌ 不能直接对 Option 运算
 
 ## 小结
 
-`Vec`、`HashMap`、`String` 是日常 Rust 的三大主力集合，`entry` API 是 HashMap 的高频技巧。
+`Vec`、`HashMap`、`String` 是日常 Rust 的三大主力集合，`HashSet` 适合去重；`entry` API 是 HashMap 的高频技巧，`retain`/`sort_by` 则是 `Vec` 的常用利器。
 
 ## 下一步
 

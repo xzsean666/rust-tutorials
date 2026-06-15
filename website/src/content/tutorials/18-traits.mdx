@@ -18,8 +18,13 @@ updatedAt: "2026-06-15"
 ## 你会学到什么
 
 - `trait` 定义一组类型可以共享的方法（类似接口）。
+- 为多个类型实现同一个 trait。
 - trait 可以提供默认方法，实现者按需覆盖。
-- `&impl Trait` 是简洁的 trait bound 写法。
+- 把 trait 作为泛型函数的约束（trait bound）。
+- 参数位置与返回位置的 `impl Trait`。
+- 为自定义类型实现标准库 trait（`std::fmt::Display`）。
+
+本章聚焦“静态分发”（编译期单态化）。运行时多态用的 `dyn` trait 对象留到下一章。
 
 ## 最小示例
 
@@ -27,7 +32,7 @@ updatedAt: "2026-06-15"
 trait Summary {
     fn summarize(&self) -> String;
     fn preview(&self) -> String {
-        format!("{} (更多)", self.summarize()) // 默认方法
+        format!("{} (点击查看更多)", self.summarize()) // 默认方法
     }
 }
 ```
@@ -42,25 +47,51 @@ cargo test -p rt_17_traits
 
 ## 代码讲解
 
-为类型实现 trait：
+### 为多个类型实现同一个 trait
+
+`Summary` 提供了一个必须实现的 `summarize`，外加两个默认方法 `preview` 与
+`word_count`。`Article` 不覆盖任何默认方法，于是自动获得默认实现；`Tweet`
+则覆盖了 `preview`，因为它本身已经足够简短。默认方法可以调用 `self.summarize()`，
+所以即便实现者只写一行，也能复用完整逻辑。
+
+### trait bound：三种等价写法
+
+约束泛型“必须实现某个 trait”有几种写法，挑顺手的即可：
 
 ```rust
-impl Summary for Article {
-    fn summarize(&self) -> String {
-        format!("{} - {}", self.title, self.author)
+fn announce<T: Summary>(item: &T) -> String { /* 泛型 + trait bound */ }
+fn headline(item: &impl Summary) -> String { /* 参数位置 impl Trait，语法糖 */ }
+```
+
+泛型写法 `<T: Summary>` 能在多个参数间共享同一个 `T`，表达力最强；`&impl Summary`
+更简洁。两者都是编译期单态化，零运行时开销。
+
+### 返回位置的 impl Trait
+
+返回 `impl Summary` 时，调用方只知道“这是一个 Summary”，不必关心具体类型：
+
+```rust
+fn featured() -> impl Summary {
+    Tweet { /* ... */ }
+}
+```
+
+这在返回闭包、迭代器等“类型名难以书写”的场景特别有用。
+
+### 为自定义类型实现标准库 trait
+
+`Shape` 演示了用 trait bound 写通用算法（`describe_shape`）。同时我们给
+`Rectangle` 实现了标准库的 `std::fmt::Display`，于是它可以被 `{}` 直接打印：
+
+```rust
+impl std::fmt::Display for Rectangle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}×{} 的矩形", self.width, self.height)
     }
 }
 ```
 
-`Article` 没有定义 `preview`，于是自动获得默认实现；`Tweet` 则可以覆盖它。
-
-函数用 `&impl Summary` 接受任何实现者：
-
-```rust
-fn announce(item: &impl Summary) -> String {
-    format!("最新: {}", item.preview())
-}
-```
+因为 `Rectangle` 定义在本 crate，满足孤儿规则，所以允许这样实现。
 
 ## 常见错误
 
@@ -75,7 +106,8 @@ trait 或类型至少有一个定义在你自己的 crate 里才允许实现。
 ## 练习
 
 - 定义一个 `Describe` trait，给 `i32` 和 `String` 各实现一份。
-- 给 `Summary` 加一个默认方法 `word_count`，统计 `summarize` 的词数。
+- 再加一个 `Triangle` 实现 `Shape`，并让它也实现 `Display`。
+- 写一个返回 `impl Shape` 的函数，根据参数返回圆形或矩形（提示：返回位置的 `impl Trait` 要求所有分支是同一具体类型，思考为什么，这正是下一章 `dyn` 要解决的问题）。
 
 ## 小结
 

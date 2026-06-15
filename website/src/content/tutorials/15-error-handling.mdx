@@ -19,12 +19,14 @@ updatedAt: "2026-06-15"
 
 - `Result<T, E>` 表示“可能失败”的操作。
 - `?` 运算符在出错时提前返回，让主流程保持清爽。
-- 区分可恢复错误（`Result`）和不可恢复错误（`panic!`）。
+- 用组合子（`map` / `map_err` / `unwrap_or` / `ok`）以表达式风格处理错误。
+- 在 `Option` 与 `Result` 之间转换（`ok_or` / `ok`）。
+- 返回 `Box<dyn Error>`，让 `?` 把不同类型的错误统一传播。
 
 ## 最小示例
 
 ```rust
-fn parse_sum(input: &str) -> Result<i32, std::num::ParseIntError> {
+fn parse_and_sum(input: &str) -> Result<i32, std::num::ParseIntError> {
     let mut total = 0;
     for token in input.split_whitespace() {
         total += token.parse::<i32>()?; // 失败就提前返回 Err
@@ -41,14 +43,46 @@ cargo run -p rt_14_error_handling
 cargo test -p rt_14_error_handling
 ```
 
+完整源码见下方嵌入，本章只用标准库，不引入任何第三方 crate。
+
 ## 代码讲解
 
-`?` 等价于“成功就取出值，失败就 `return Err(...)`”，避免层层嵌套的 `match`。它只能用在返回 `Result`（或 `Option`）的函数里。
+### `?` 与错误传播
 
-当你能给出合理默认值时，用 `unwrap_or`：
+`?` 等价于“成功就取出值，失败就 `return Err(...)`”，避免层层嵌套的 `match`。它只能用在返回 `Result`（或 `Option`）的函数里。`parse_and_sum` 就靠 `?` 在第一个非法 token 处立即返回 `Err`，主流程读起来像没有错误处理一样干净。
+
+### 用组合子代替 match
+
+很多时候不必写出完整的 `match`，组合子更紧凑：
+
+- `map`：只变换成功值。`parse_doubled` 解析成功后翻倍，`Err` 原样保留。
+- `map_err`：只变换错误值。`parse_port` 把底层的 `ParseIntError` 包装成带上下文的 `String`，告诉调用方究竟哪个 token 出了错。
+- `unwrap_or`：出错时给一个默认值，函数不再返回 `Result`。`parse_or_zero` 失败就返回 `0`。
+- `ok`：丢掉错误原因，把 `Result<T, E>` 变成 `Option<T>`——只关心“有没有值”时很方便。
 
 ```rust
 let value = token.parse::<i32>().unwrap_or(0);
+let port = token.parse::<u16>().map_err(|e| format!("无效端口：{e}"));
+```
+
+### `Option` 与 `Result` 互转
+
+`Option` 表达“有没有值”，`Result` 表达“成功还是失败并带原因”。用 `ok_or` / `ok_or_else` 给 `None` 补上一个错误，就能接着用 `?`：
+
+```rust
+let first = tokens.first().ok_or_else(|| "列表为空".to_string())?;
+```
+
+### 用 `Box<dyn Error>` 统一不同错误
+
+一个函数里可能产生多种错误类型（如 `ParseIntError` 和我们自己的字符串错误）。只要它们都实现了 `Error`，把返回类型写成 `Result<_, Box<dyn std::error::Error>>`，`?` 就会自动把它们“装箱”成同一类型，省去手写转换：
+
+```rust
+fn parse_config(line: &str) -> Result<(String, u16), Box<dyn std::error::Error>> {
+    let (host, port_str) = line.split_once(':').ok_or("格式应为 host:port")?;
+    let port: u16 = port_str.trim().parse()?; // ParseIntError 自动转为 Box<dyn Error>
+    Ok((host.trim().to_string(), port))
+}
 ```
 
 `unwrap()` / `expect()` 在 `Err` 时会 panic，适合“逻辑上不可能失败”的场景或快速原型，不要用在正常错误路径上。
@@ -68,11 +102,12 @@ fn main() {
 ## 练习
 
 - 写一个函数把 `&str` 解析成 `f64`，失败返回 `Result`。
-- 把示例里的 `parse_sum` 改成遇到第一个错误就附带出错的 token 信息。
+- 仿照 `parse_port`，给 `parse_and_sum` 用 `map_err` 加上“哪个 token 出错”的信息。
+- 给 `parse_config` 再加一条校验（如端口必须大于 1024），用 `.into()` 返回错误。
 
 ## 小结
 
-`Result` 把错误编码进类型，`?` 让传播错误几乎零成本。可恢复用 `Result`，真正的 bug 才 `panic`。
+`Result` 把错误编码进类型，`?` 让传播错误几乎零成本；组合子（`map` / `map_err` / `unwrap_or` / `ok` / `ok_or`）让错误处理写成简洁的表达式；`Box<dyn Error>` 则把多种错误统一起来。可恢复用 `Result`，真正的 bug 才 `panic`。
 
 ## 下一步
 

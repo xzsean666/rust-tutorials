@@ -19,6 +19,8 @@ updatedAt: "2026-06-15"
 
 - 用 `<T>` 声明类型参数，写一份代码服务多种类型。
 - 用 trait bound（如 `T: PartialOrd`）约束泛型能做什么。
+- 给泛型结构体写泛型方法，并支持多个类型参数（`Labeled<K, V>`）。
+- 用 `where` 子句表达较长的约束，用条件实现让方法只对满足额外约束的类型可用。
 - 泛型在编译期单态化，没有运行时开销。
 
 ## 最小示例
@@ -43,9 +45,9 @@ cargo test -p rt_16_generics
 
 ## 代码讲解
 
-`T: PartialOrd + Copy` 是 trait bound：`PartialOrd` 让 `>` 可用，`Copy` 让 `*item` 能按位复制。没有约束的泛型几乎什么都做不了，因为编译器不知道这个类型支持哪些操作。
+`T: PartialOrd + Copy` 是 trait bound：`PartialOrd` 让 `>` 可用，`Copy` 让 `*item` 能按位复制。没有约束的泛型几乎什么都做不了，因为编译器不知道这个类型支持哪些操作。示例里的 `largest` 和 `smallest` 共用同一组约束，只是比较方向不同。
 
-结构体也可以是泛型的：
+结构体也可以是泛型的。`Pair<T>` 的两个字段必须同类型，它的 `impl<T: Clone>` 块里写了泛型方法 `new` 和 `swapped`——`swapped` 需要 `Clone`，因为 `&self` 不允许把字段移出借用：
 
 ```rust
 struct Pair<T> {
@@ -53,6 +55,12 @@ struct Pair<T> {
     second: T,
 }
 ```
+
+**条件实现**：同一个类型可以有多个 `impl` 块，各自带不同约束。`Pair<T>` 还有一个 `impl<T: PartialOrd + Clone>` 块提供 `larger` 方法。于是 `Pair` 对不可比较的 `T` 依然能用，只是没有 `larger`——能力随约束“按需解锁”。
+
+**多个类型参数**：`Labeled<K, V>` 的标签和数据可以是不同类型。它的 `map_value` 方法还在方法层面引入了新参数 `W`，把数据从一种类型映射成另一种，标签类型保持不变。
+
+**`where` 子句**：当约束变长时，把它从尖括号挪到 `where` 更易读。示例用 `where K: Display, V: Display` 给 `Labeled` 加上只在两者都能打印时才存在的 `describe` 方法。
 
 调用 `largest(&[3, 7, 2])` 时编译器会为 `i32` 生成一份专用代码（单态化），所以泛型既灵活又零成本。
 
@@ -74,8 +82,8 @@ fn largest<T>(items: &[T]) -> T {
 
 ## 练习
 
-- 写一个泛型函数返回切片中最小的元素。
-- 给 `Pair<T>` 加一个要求 `T: std::fmt::Display` 的方法，打印两个字段。
+- 给 `Pair<T>` 再加一个条件实现：仅当 `T: std::fmt::Display` 时提供方法，打印两个字段。
+- 给 `Labeled<K, V>` 加一个 `map_label` 方法，仿照 `map_value` 只替换标签部分。
 
 ## 小结
 

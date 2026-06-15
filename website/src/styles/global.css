@@ -998,6 +998,83 @@ select {
 }
 
 /* ------------------------------------------------------------------ *
+ * Embedded full example source files
+ * ------------------------------------------------------------------ */
+.example-files {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.example-files__hint {
+  color: hsl(var(--muted-foreground));
+}
+
+.example-file {
+  margin: 0.9rem 0;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: hsl(var(--code-bg));
+}
+
+.example-file__summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  color: hsl(var(--code-foreground));
+  background: hsl(0 0% 100% / 0.04);
+  transition: background 0.15s ease;
+}
+
+.example-file__summary::-webkit-details-marker {
+  display: none;
+}
+
+.example-file__summary:hover {
+  background: hsl(0 0% 100% / 0.08);
+}
+
+.example-file__chevron {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  color: hsl(var(--code-foreground) / 0.65);
+  transition: transform 0.15s ease;
+}
+
+.example-file[open] .example-file__chevron {
+  transform: rotate(90deg);
+}
+
+.example-file__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 展开后的代码块与路径栏无缝衔接:去掉外边距与圆角。 */
+.example-file .code-block,
+.article-content .example-file .code-block {
+  margin: 0;
+}
+
+.example-file .article-content pre,
+.article-content .example-file pre {
+  margin: 0;
+  border: none;
+  border-top: 1px solid hsl(var(--border) / 0.5);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ *
  * TOC scrollspy active link
  * ------------------------------------------------------------------ */
 .toc a[aria-current="true"] {

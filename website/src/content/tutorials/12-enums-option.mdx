@@ -17,18 +17,23 @@ updatedAt: "2026-06-15"
 
 ## 你会学到什么
 
-- 枚举的每个变体可以携带不同的数据。
+- 枚举的每个变体可以携带不同的数据（结构体式字段或元组式字段）。
+- 给枚举写 `impl` 方法，在方法里 `match self`。
 - 用 `match` 对枚举做穷尽处理。
 - `Option<T>` 是标准库枚举，替代其他语言的 `null`。
+- `Option` 的常用组合子 `map` / `and_then` / `unwrap_or` / `unwrap_or_else`，以及 `if let`、`let ... else`。
 
 ## 最小示例
 
 ```rust
 enum Shape {
-    Circle { radius: f64 },
+    Circle { radius: f64 },        // 结构体式变体
     Rectangle { width: f64, height: f64 },
+    Triangle(f64, f64),            // 元组式变体
 }
 ```
+
+示例里还有一个更贴近业务的 `Event` 枚举（点击、按键、粘贴、关闭），演示枚举如何统一表达“一组互斥的消息”。
 
 ## 运行代码
 
@@ -40,25 +45,20 @@ cargo test -p rt_11_enums_option
 
 ## 代码讲解
 
-`match` 必须覆盖所有变体，编译器会在你漏掉时报错——这正是枚举安全的来源：
+### 枚举 + impl 方法
 
-```rust
-fn area(shape: &Shape) -> f64 {
-    match shape {
-        Shape::Circle { radius } => std::f64::consts::PI * radius * radius,
-        Shape::Rectangle { width, height } => width * height,
-    }
-}
-```
+把行为挂在枚举上：`area` 是 `Shape` 的方法，内部 `match self`。`match` 必须覆盖所有变体，新增 `Triangle` 后若忘了补分支，编译器会直接报错——这正是枚举安全的来源。`name` 方法用 `..` 忽略不关心的字段，只判断是哪个变体。`Event` 枚举的 `describe` 同理，把四种事件渲染成一行日志，展示枚举如何统一表达“一组互斥的消息”。
 
-`Option<T>` 只有两个变体：`Some(T)` 和 `None`。Rust 没有 `null`，“可能没有值”被编码进类型，迫使你显式处理：
+### Option 与组合子
 
-```rust
-match first_even(&[1, 3, 4]) {
-    Some(value) => println!("{value}"),
-    None => println!("none"),
-}
-```
+`Option<T>` 只有两个变体：`Some(T)` 和 `None`。Rust 没有 `null`，“可能没有值”被编码进类型，迫使你显式处理。除了最完整的 `match`，示例里还演示了几种更简洁的写法：
+
+- `if let Some(n) = ...`：只关心 `Some` 分支时的简写。
+- `let Some(first) = ... else { return; }`：拿不到值就提前退出，让主流程保持平铺、不嵌套。
+- `map`：在 `Some` 内部做变换，`None` 原样传递（`first_even_squared_or_zero` 里 `map(|n| n * n)`）。
+- `and_then`：上一步是 `Some` 才继续，否则短路（`parse_positive` 先 `parse().ok()` 再 `and_then` 过滤正数）。
+- `unwrap_or`：取值或给一个固定默认值。
+- `unwrap_or_else`：默认值需要计算时用闭包，只有 `None` 时才执行，避免无谓开销。
 
 ## 常见错误
 
@@ -68,12 +68,13 @@ match first_even(&[1, 3, 4]) {
 let value = first_even(&[1, 3, 5]).unwrap(); // ❌ None 时 panic
 ```
 
-更安全的做法是 `match`、`if let`，或带默认值的 `unwrap_or`。
+更安全的做法是 `match`、`if let`、`let ... else`，或带默认值的 `unwrap_or` / `unwrap_or_else`。
 
 ## 练习
 
-- 给 `Shape` 加一个 `Triangle { base, height }` 变体，并补全 `area`。
-- 写一个返回 `Option<&str>` 的函数，取出切片的第一个元素。
+- 给 `Shape` 再加一个 `Square { side }` 变体，并补全 `area` 与 `name`。
+- 给 `Event` 加一个 `Scroll { delta: i32 }` 变体，并补全 `describe`。
+- 写一个返回 `Option<&str>` 的函数取出切片首元素，再用 `map` 把它转成大写。
 
 ## 小结
 

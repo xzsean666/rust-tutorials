@@ -18,8 +18,10 @@ updatedAt: "2026-06-15"
 ## 你会学到什么
 
 - `match` 可以解构枚举、结构体和元组并绑定内部值。
-- 用守卫 `if` 给分支加额外条件，用 `1..=9` 匹配范围。
-- `if let` / `while let` 是只关心一种模式时的简写。
+- 用守卫 `if` 给分支加额外条件，用 `1..=9` 匹配范围，用 `|` 写或模式。
+- 用 `@` 在匹配范围的同时把整段值绑定到名字上。
+- `if let` / `while let` / `let else` 是只关心一种模式时的简写。
+- `_` 忽略单个值，`..` 忽略一连串值。
 
 ## 最小示例
 
@@ -43,25 +45,32 @@ cargo test -p rt_12_pattern_matching
 
 ## 代码讲解
 
-匹配枚举时可以直接解构出字段：
+示例里的 `Message` 枚举覆盖了三种变体形态：类单元的 `Quit`、结构体式的 `Move { x, y }`、元组式的 `Write(String)` 和 `Color(u8, u8, u8)`。`describe` 用一个 `match` 把它们一次解构完：
+
+- `Message::Move { x: 0, y: 0 }` 直接在模式里写死字面量，匹配“原点”这种特例；后一条 `Message::Move { x, y }` 才绑定任意坐标。**顺序很重要**，更具体的分支要写在前面。
+- `Message::Color(0, 0, 0) | Message::Color(255, 255, 255)` 用或模式 `|` 让纯黑、纯白共用一条分支。
+- `Message::Color(r @ 200..=255, g, b)` 同时做两件事：范围模式 `200..=255` 限定红色分量，绑定 `@` 又把这个值留在 `r` 里继续使用。
+
+`classify` 展示守卫与范围：`n if n < 0` 是带额外条件的守卫，`1..=9`、`10..=99` 是连续区间，`_` 兜底。
+
+`locate` 把点拆成元组再匹配，`(_, 0)` 用 `_` 忽略 x 只看 y，最后用守卫 `(x > 0) == (y > 0)` 判断象限——这是嵌套在元组模式里的条件。
+
+只关心一种模式时，有三种简写：
 
 ```rust
-match command {
-    Command::Move { x, y } => format!("move to ({x}, {y})"),
-    Command::Write(text) => format!("write: {text}"),
-    Command::Quit => "quit".to_string(),
-}
+if let Some(value) = maybe { /* 处理 Some */ }
+
+while let Some(top) = stack.pop() { /* 反复弹出直到 None */ }
+
+let Some(parsed) = "42".parse::<i32>().ok() else {
+    // 不匹配就在这里提前返回 / panic
+    unreachable!();
+};
 ```
 
-守卫让同一个模式按额外条件细分，范围模式 `1..=9` 匹配一段连续值，`_` 是兜底分支。
+`let else` 在匹配成功时把绑定（`parsed`）引入后续作用域，失败时必须在 `else` 里发散（`return`、`break`、`panic!` 等）。
 
-`if let` 适合只处理一种情况：
-
-```rust
-if let Some(value) = maybe {
-    println!("got {value}");
-}
-```
+需要忽略一连串元素时用 `..`：`let (first, .., last) = triple;` 只取首尾。
 
 ## 常见错误
 
@@ -79,8 +88,9 @@ match value {
 
 ## 练习
 
-- 用 `match` 解构元组 `(i32, i32)`，区分原点、坐标轴和一般点。
-- 用 `while let` 不断从 `Vec` 弹出元素直到为空。
+- 给 `Message` 再加一个 `Resize { w: u32, h: u32 }` 变体，并在 `describe` 里处理它。
+- 用绑定 `@` 改写 `classify`，让“两位数”分支同时打印出原始数字。
+- 用 `let else` 解析一个可能失败的字符串，失败时返回错误而不是 panic。
 
 ## 小结
 

@@ -1,0 +1,29 @@
+---
+import { Code } from "astro:components";
+import { getExampleFiles } from "../utils/exampleFiles";
+
+interface Props {
+  dir: string;
+}
+
+const { dir } = Astro.props;
+const files = getExampleFiles(dir);
+---
+
+<section class="example-files">
+  <h2 id="完整示例代码">完整示例代码</h2>
+  <p class="example-files__hint">
+    下面是 <code>examples/{dir}/</code> 的完整源码。无需 clone 仓库，直接在页面上阅读、复制、对照运行。
+  </p>
+  {
+    files.map((file) => (
+      <details class="example-file" open={file.primary}>
+        <summary class="example-file__summary">
+          <svg class="example-file__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+          <span class="example-file__path">{file.path}</span>
+        </summary>
+        <Code code={file.code} lang={file.lang} theme="github-dark" />
+      </details>
+    ))
+  }
+</section>

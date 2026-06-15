@@ -17,9 +17,11 @@ updatedAt: "2026-06-15"
 
 ## 你会学到什么
 
-- 迭代器是惰性的：适配器只有在被消费时才真正执行。
-- `map` / `filter` 变换数据，`collect` / `sum` / `fold` 收尾。
-- 用迭代器链替代手写循环，代码更短也更清晰。
+- 迭代器是惰性的：适配器（adapter）只有在被消费时才真正执行。
+- 常用适配器：`map` / `filter` / `filter_map` / `enumerate` / `zip` / `take` / `skip` / `chain` / `flat_map`。
+- 常用消费者（consumer）：`collect` / `sum` / `count` / `fold` / `any` / `all` / `find` / `max` / `min`。
+- `collect` 不止能收成 `Vec`，还能收成 `String`、`HashMap` 等容器。
+- `iter` / `into_iter` / `iter_mut` 的区别。
 
 ## 最小示例
 
@@ -38,24 +40,35 @@ cargo test -p rt_20_iterators
 
 ## 代码讲解
 
-适配器可以链式组合，最后用一个“消费者”收尾：
+### 适配器链：惰性组合
 
-```rust
-fn sum_of_squares(values: &[i32]) -> i32 {
-    values.iter().map(|value| value * value).sum()
-}
-```
+适配器输入一个迭代器、返回一个新的迭代器，可以任意串联，最后用一个“消费者”收尾。
+例子 `sum_of_even_squares` 先筛偶数、再平方、最后求和，全程只遍历一次——而且在 `sum()`
+被调用之前，前面的 `filter` / `map` 什么都不做。这就是“惰性”：适配器只是搭好流水线，
+消费者才按下开关。
 
-`fold` 是最通用的消费者，能表达任意累积逻辑，比如一次遍历同时求最小值和最大值：
+### 几个常被忽略的适配器
 
-```rust
-values.iter().fold(None, |acc, &value| match acc {
-    None => Some((value, value)),
-    Some((min, max)) => Some((min.min(value), max.max(value))),
-})
-```
+- `filter_map`（见 `parse_numbers`）一步完成“尝试转换并丢弃失败项”：闭包返回 `Option`，
+  `Some` 保留、`None` 丢弃，比 `filter` 后再 `map` 更紧凑。
+- `zip`（见 `rank_lines`）把两个迭代器逐项配对，长度以**较短者**为准；`enumerate` 则附上下标。
+- `flat_map`（见 `all_words`）把每个元素展开成一段子迭代器再摊平，适合“句子拆单词”这类嵌套结构。
+- `skip` / `take` / `chain`（见 `paginate`）分别用于跳过开头、截取片段、首尾拼接两个迭代器。
 
-`iter()` 产出 `&T`，`into_iter()` 产出 `T`（消费集合），`iter_mut()` 产出 `&mut T`。
+### collect 的多副面孔
+
+`collect` 会根据目标类型自动选择容器。`word_lengths` 让迭代器产出 `(String, usize)` 元组，
+`collect` 就收成 `HashMap`；`shout` 让它产出 `char`，`collect` 就拼成 `String`。
+
+### fold 与短路消费者
+
+`fold` 是最通用的消费者，能表达任意累积逻辑，比如一次遍历同时求最小值和最大值（见 `min_max`）。
+而 `any` / `all` / `find` 是**短路**的：一旦得出结论就立即停止，不会白白遍历剩余元素（见 `analyze`）。
+
+### iter / into_iter / iter_mut
+
+`iter()` 产出 `&T`（只读借用），`iter_mut()` 产出 `&mut T`（可原地修改，见 `double_in_place`），
+`into_iter()` 产出 `T` 并消费掉集合（`main` 末尾用它把翻倍后的 `Vec` 求和）。
 
 ## 常见错误
 

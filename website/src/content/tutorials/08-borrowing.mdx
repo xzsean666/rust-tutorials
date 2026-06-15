@@ -17,16 +17,18 @@ updatedAt: "2026-06-15"
 
 ## 你会学到什么
 
-- 用 `&` 创建共享借用，用 `&mut` 创建可变借用。
-- 借用规则：要么多个共享借用，要么一个可变借用，不能同时。
-- 借用不转移所有权，调用方仍然拥有数据。
+- 用 `&` 创建共享借用 `&T`，用 `&mut` 创建可变借用 `&mut T`。
+- 借用规则：同一时刻要么多个共享借用，要么一个可变借用，不能同时。
+- 借用不转移所有权，调用结束后数据仍归调用方。
+- 非词法生命周期（NLL）：借用在最后一次使用后就结束。
+- 返回引用、`&str` 与 `&String` 的区别，以及方法的 `&self` / `&mut self`。
 
 ## 最小示例
 
 ```rust
-let mut message = String::from("hello");
-append_exclaim(&mut message); // 可变借用
-println!("{message}"); // message 仍然属于这里
+let mut scores = vec![10, 20, 30];
+double_all(&mut scores); // 可变借用，原地修改
+println!("{scores:?}"); // scores 仍然属于这里
 ```
 
 ## 运行代码
@@ -39,7 +41,31 @@ cargo test -p rt_07_borrowing
 
 ## 代码讲解
 
-共享借用 `&T` 是只读的，可以同时存在多个：
+完整源码已在本页下方嵌入，这里只点出几个关键片段。
+
+**共享借用 `&T`** 是只读的，可以同时存在多个。参数写成切片 `&[i32]`
+而不是 `&Vec<i32>`，这样数组、`Vec`、切片都能传进来：
+
+```rust
+fn sum(numbers: &[i32]) -> i32 {
+    numbers.iter().sum()
+}
+```
+
+**可变借用 `&mut T`** 允许修改，但同一时刻只能有一个。写入被借用的值
+需要用 `*` 解引用：
+
+```rust
+fn double_all(numbers: &mut [i32]) {
+    for n in numbers.iter_mut() {
+        *n *= 2;
+    }
+}
+```
+
+**返回引用** 时，返回值指向传入的数据，因此不会悬垂。入参用 `&str`
+而非 `&String`：`&String` 会自动解引用强制转换成 `&str`，所以 `&str`
+既能接受字符串字面量，也能接受 `String` 的借用：
 
 ```rust
 fn first_word(text: &str) -> &str {
@@ -47,37 +73,63 @@ fn first_word(text: &str) -> &str {
 }
 ```
 
-可变借用 `&mut T` 允许修改，但同一时刻只能有一个：
+**方法的 `&self` / `&mut self`** 其实就是对 `self` 的借用。`&self`
+是只读借用、可多次调用；`&mut self` 是可变借用、同一时刻唯一：
 
 ```rust
-fn append_exclaim(text: &mut String) {
-    text.push('!');
+impl Account {
+    fn balance(&self) -> i64 { self.balance }       // 只读
+    fn deposit(&mut self, amount: i64) { self.balance += amount; } // 可变
 }
+```
+
+得益于 **非词法生命周期（NLL）**，借用在最后一次使用后即结束，所以下面
+这段代码是合法的——共享借用 `first` 在 `push` 之前已经用完：
+
+```rust
+let mut v = vec![1, 2, 3];
+let first = &v[0];
+println!("{first}"); // first 到此用完
+v.push(4);           // 可变借用，OK
 ```
 
 借用检查器在编译期保证：不会出现“一边读一边写”的数据竞争。
 
 ## 常见错误
 
-同时持有可变借用和共享借用：
+**共享借用还活着时又要可变借用**——把上面合法的例子改一下顺序就会报错：
 
 ```rust
 let mut v = vec![1, 2, 3];
 let first = &v[0];   // 共享借用
-v.push(4);           // ❌ 可变借用，与 first 冲突
-println!("{first}");
+v.push(4);           // ❌ 可变借用，与仍在使用的 first 冲突
+println!("{first}"); // first 在 push 之后才用，借用没结束
 ```
 
 修复方式是缩小借用范围，让 `first` 在 `push` 之前用完。
 
+**返回局部变量的引用**——函数结束后局部变量被释放，引用会悬垂：
+
+```rust
+fn dangle() -> &String {
+    let s = String::from("oops");
+    &s // ❌ s 在函数结束时被丢弃
+}
+```
+
+应当直接返回 `String`（移交所有权），或返回指向入参的引用。
+
 ## 练习
 
-- 写一个函数 `&mut Vec<i32>`，把每个元素翻倍。
-- 写一个函数返回切片中的最大值引用 `&i32`。
+- 写一个函数 `cap(words: &mut Vec<String>)`，把每个字符串末尾加上 `!`。
+- 写一个函数 `max_ref(numbers: &[i32]) -> Option<&i32>`，返回切片中最大值的引用。
+- 给 `Account` 增加一个 `withdraw(&mut self, amount: i64)` 方法，并补一个测试。
 
 ## 小结
 
-借用让你在不转移所有权的前提下访问数据。共享借用可读不可写且可多个，可变借用唯一且可写。
+借用让你在不转移所有权的前提下访问数据。共享借用 `&T` 可读不可写、可多个；
+可变借用 `&mut T` 唯一且可写。借用在最后一次使用后结束（NLL）。方法上的
+`&self` / `&mut self` 就是对自身的共享 / 可变借用。
 
 ## 下一步
 
