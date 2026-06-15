@@ -1,0 +1,29 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="关于" description="Rust Tutorial 的项目定位和维护方式。">
+  <main class="page">
+    <h1 class="page-title">关于</h1>
+    <p class="lead">
+      Rust Tutorial 是一个中文、示例驱动的 Rust 学习平台。站点主体静态生成，学习进度保存在本地浏览器。
+    </p>
+    <section class="section">
+      <h2>维护原则</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>内容优先</h3>
+          <p>页面结构服务于阅读、搜索和顺序学习，新增章节尽量只增加 MDX 和示例代码。</p>
+        </article>
+        <article class="card">
+          <h3>示例优先</h3>
+          <p>关键知识点配套可运行 Cargo 项目，并进入统一校验脚本。</p>
+        </article>
+        <article class="card">
+          <h3>长期维护</h3>
+          <p>Rust 工具链、Node 版本、内容 schema 和示例检查都固定在仓库中。</p>
+        </article>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

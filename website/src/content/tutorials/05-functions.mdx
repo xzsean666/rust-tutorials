@@ -1,0 +1,77 @@
+---
+title: "函数、参数与返回值"
+description: "写出带参数、返回值和表达式函数体的 Rust 函数。"
+stage: "basic"
+order: 50
+level: "beginner"
+estimatedMinutes: 25
+tags: ["基础语法", "函数"]
+rustConcepts: ["fn", "parameter", "return", "expression"]
+prerequisites: ["04-scalar-compound-types"]
+exampleDir: "04_functions"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 函数、参数与返回值
+
+## 你会学到什么
+
+- 函数参数必须写类型。
+- 返回值类型写在 `->` 后面。
+- 没有分号的最后一个表达式会成为返回值。
+
+## 最小示例
+
+```rust
+fn add(left: i32, right: i32) -> i32 {
+    left + right
+}
+```
+
+`left + right` 后面没有分号，所以它是函数返回值。
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_04_functions
+cargo test -p rt_04_functions
+```
+
+## 代码讲解
+
+Rust 可以使用 `return` 提前返回，但常规路径更推荐表达式风格：
+
+```rust
+fn is_passing(score: u32) -> bool {
+    score >= 60
+}
+```
+
+函数签名是调用方和实现方之间的契约。参数和返回值类型清楚之后，编译器能在调用点提前发现错误。
+
+## 常见错误
+
+下面的函数会报错，因为分号把表达式变成了语句：
+
+```rust
+fn add(left: i32, right: i32) -> i32 {
+    left + right;
+}
+```
+
+修复方式是去掉最后的分号。
+
+## 练习
+
+- 写一个 `minutes_to_hours(minutes: u32) -> f64`。
+- 给函数增加单元测试。
+
+## 小结
+
+函数签名要显式，函数体可以保持表达式风格。理解分号是否存在非常重要。
+
+## 下一步
+
+下一章学习 `if`、`loop`、`while` 和 `for`。

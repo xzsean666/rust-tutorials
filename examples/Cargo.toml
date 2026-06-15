@@ -1,0 +1,15 @@
+[workspace]
+resolver = "3"
+members = [
+  "00_hello_world",
+  "01_cargo_project",
+  "02_variables",
+  "03_scalar_compound_types",
+  "04_functions",
+  "05_control_flow",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false

@@ -1,0 +1,23 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { allTags, getPublishedTutorials } from "../../utils/tutorials";
+
+const tutorials = await getPublishedTutorials();
+const tags = allTags(tutorials);
+---
+
+<BaseLayout title="标签" description="按标签浏览 Rust Tutorial 章节。">
+  <main class="page">
+    <h1 class="page-title">标签</h1>
+    <p class="lead">用标签快速回到某类主题，例如所有权、工具链、基础语法或错误处理。</p>
+    <div class="tags">
+      {
+        tags.map((tag) => (
+          <a class="tag" href={`/tags/${encodeURIComponent(tag)}/`}>
+            {tag}
+          </a>
+        ))
+      }
+    </div>
+  </main>
+</BaseLayout>

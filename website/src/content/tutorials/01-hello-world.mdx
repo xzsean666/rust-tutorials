@@ -1,0 +1,76 @@
+---
+title: "第一个程序：Hello World"
+description: "运行最小 Rust 程序，认识 main 函数和 println! 宏。"
+stage: "intro"
+order: 10
+level: "beginner"
+estimatedMinutes: 20
+tags: ["工具链", "基础语法"]
+rustConcepts: ["fn main", "println!", "macro"]
+prerequisites: ["00-rust-overview"]
+exampleDir: "00_hello_world"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 第一个程序：Hello World
+
+## 你会学到什么
+
+- `fn main` 是二进制程序入口。
+- `println!` 是宏，不是普通函数。
+- 示例目录可以直接用 Cargo 运行。
+
+## 最小示例
+
+```rust
+fn main() {
+    println!("你好，Rust!");
+}
+```
+
+## 运行代码
+
+在仓库根目录执行：
+
+```bash
+cd examples
+cargo run -p rt_00_hello_world
+```
+
+预期输出：
+
+```text
+你好，Rust! 欢迎学习 Rust。
+```
+
+## 代码讲解
+
+`main` 函数没有参数，也没有显式返回值。程序从这里开始执行。
+
+`println!` 末尾的 `!` 表示它是一个 macro（宏）。宏会在编译期展开成 Rust 代码，常用于格式化输出、派生代码或减少重复样板。
+
+## 常见错误
+
+如果忘记分号：
+
+```rust
+fn main() {
+    println!("你好，Rust!")
+}
+```
+
+这个例子仍然能编译，因为函数体最后一个表达式可以省略分号。但在普通语句后漏掉分号，往往会改变表达式的返回值。后续章节会专门解释 statement（语句）和 expression（表达式）。
+
+## 练习
+
+- 把输出里的名字改成你的英文名或项目名。
+- 增加第二行输出，说明你准备用 Rust 写什么。
+
+## 小结
+
+Rust 二进制程序从 `main` 开始执行。最小程序不需要任何依赖。
+
+## 下一步
+
+下一章会用 Cargo 解释 package、crate、构建和测试命令。

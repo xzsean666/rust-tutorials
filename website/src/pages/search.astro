@@ -1,0 +1,32 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="搜索" description="搜索 Rust Tutorial 章节。">
+  <main class="page">
+    <h1 class="page-title">搜索</h1>
+    <p class="lead">生产构建后会由 Pagefind 生成索引；开发模式下此页会显示占位状态。</p>
+    <link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+    <div id="search"></div>
+    <script is:inline>
+      window.addEventListener("DOMContentLoaded", async () => {
+        const target = document.querySelector("#search");
+        try {
+          const pagefind = await import("/pagefind/pagefind-ui.js");
+          new pagefind.PagefindUI({
+            element: "#search",
+            showImages: false,
+            translations: {
+              placeholder: "搜索 Rust 概念、章节或示例",
+              clear_search: "清空",
+              load_more: "加载更多结果",
+              search_label: "搜索本站",
+            },
+          });
+        } catch {
+          target.textContent = "搜索索引会在 pnpm build 后生成。";
+        }
+      });
+    </script>
+  </main>
+</BaseLayout>

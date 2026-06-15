@@ -1,0 +1,79 @@
+---
+title: "Cargo 基础"
+description: "理解 Cargo 项目的目录、Cargo.toml 和常用命令。"
+stage: "intro"
+order: 20
+level: "beginner"
+estimatedMinutes: 25
+tags: ["工具链", "工程组织"]
+rustConcepts: ["Cargo.toml", "package", "crate", "cargo test"]
+prerequisites: ["01-hello-world"]
+exampleDir: "01_cargo_project"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# Cargo 基础
+
+## 你会学到什么
+
+- Cargo 同时负责构建、运行、测试和依赖管理。
+- `Cargo.toml` 描述 package 的元数据。
+- `cargo check` 比完整构建更适合频繁验证。
+
+## 最小示例
+
+一个最小 Cargo 项目通常包含：
+
+```text
+Cargo.toml
+src/
+  main.rs
+```
+
+`Cargo.toml` 的核心字段：
+
+```toml
+[package]
+name = "rt_01_cargo_project"
+version = "0.1.0"
+edition = "2024"
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_01_cargo_project
+cargo test -p rt_01_cargo_project
+```
+
+## 代码讲解
+
+Cargo 的几个常用命令：
+
+- `cargo check`：只做类型检查和借用检查，不生成最终二进制。
+- `cargo build`：构建项目。
+- `cargo run`：构建并运行二进制。
+- `cargo test`：运行单元测试、集成测试和文档测试。
+- `cargo fmt`：格式化代码。
+- `cargo clippy`：运行 lint。
+
+本仓库的 `examples/` 是一个 workspace。每个示例是独立 package，但可以用统一命令一起校验。
+
+## 常见错误
+
+在仓库根目录直接运行 `cargo run` 会失败，因为根目录不是 Cargo package。示例命令要进入 `examples/`，或者显式传入 `--manifest-path examples/Cargo.toml`。
+
+## 练习
+
+- 执行 `cargo check -p rt_01_cargo_project`。
+- 打开示例的 `Cargo.toml`，确认 `edition = "2024"`。
+
+## 小结
+
+Cargo 是 Rust 日常开发入口。后续示例都会通过 Cargo 验证。
+
+## 下一步
+
+下一章进入基础语法：变量、可变性和 shadowing。

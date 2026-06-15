@@ -1,0 +1,37 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getPublishedTutorials, groupTutorialsByStage, tutorialPath } from "../utils/tutorials";
+
+const tutorials = await getPublishedTutorials();
+const groups = groupTutorialsByStage(tutorials);
+---
+
+<BaseLayout title="学习路线" description="按阶段学习 Rust 的中文路线图。">
+  <main class="page">
+    <h1 class="page-title">学习路线</h1>
+    <p class="lead">从环境、Cargo 和基础语法开始，逐步进入所有权、建模、标准库和项目实践。</p>
+    {
+      groups.map((group) => (
+        <section class="route-stage">
+          <h2>{group.label}</h2>
+          <ol class="route-list">
+            {group.tutorials.map((tutorial) => (
+              <li class="route-item">
+                <div>
+                  <a href={tutorialPath(tutorial)} data-read-id={tutorial.id} data-progress-id={tutorial.id}>
+                    {tutorial.data.title}
+                  </a>
+                  <p>{tutorial.data.description}</p>
+                </div>
+                <div class="meta">
+                  <span class="pill">{tutorial.data.level}</span>
+                  <span class="pill">{tutorial.data.estimatedMinutes} 分钟</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))
+    }
+  </main>
+</BaseLayout>

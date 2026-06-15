@@ -1,0 +1,83 @@
+---
+title: "变量、可变性与 shadowing"
+description: "理解 let、mut、const 和 shadowing 的差异。"
+stage: "basic"
+order: 30
+level: "beginner"
+estimatedMinutes: 25
+tags: ["基础语法", "变量"]
+rustConcepts: ["let", "mut", "const", "shadowing"]
+prerequisites: ["02-cargo-project"]
+exampleDir: "02_variables"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 变量、可变性与 shadowing
+
+## 你会学到什么
+
+- Rust 变量默认不可变。
+- `mut` 允许同一个绑定被重新赋值。
+- shadowing 会创建新的绑定，可以改变类型。
+
+## 最小示例
+
+```rust
+let lessons = 1;
+let lessons = lessons + 1;
+
+let mut completed = 0;
+completed += 1;
+```
+
+第一段代码是 shadowing：第二个 `lessons` 是一个新绑定。第二段代码是 mutation：`completed` 这个绑定本身被修改。
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_02_variables
+cargo test -p rt_02_variables
+```
+
+## 代码讲解
+
+默认不可变让数据流更容易推理。你看到一个没有 `mut` 的变量，就知道它不会在同一作用域里被重新赋值。
+
+`const` 用于编译期常量，必须写类型：
+
+```rust
+const TOTAL_STAGES: u32 = 16;
+```
+
+shadowing 适合表达“处理后的新值”，例如把输入字符串去空格后再解析为数字。
+
+## 常见错误
+
+下面的代码会报错，因为 `score` 没有声明为 `mut`：
+
+```rust
+let score = 1;
+score += 1;
+```
+
+修复方式是显式写出可变性：
+
+```rust
+let mut score = 1;
+score += 1;
+```
+
+## 练习
+
+- 在示例中增加一个 `const COURSE_NAME: &str`。
+- 用 shadowing 把一个字符串 `"42"` 解析成数字。
+
+## 小结
+
+`mut` 改变的是同一个绑定，shadowing 创建的是新绑定。默认不可变是 Rust 可维护性的基础。
+
+## 下一步
+
+下一章学习标量类型和复合类型。

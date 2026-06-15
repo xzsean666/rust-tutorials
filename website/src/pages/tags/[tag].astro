@@ -1,0 +1,39 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { allTags, getPublishedTutorials, tutorialPath } from "../../utils/tutorials";
+
+export async function getStaticPaths() {
+  const tutorials = await getPublishedTutorials();
+  return allTags(tutorials).map((tag) => ({
+    params: { tag },
+    props: { tag },
+  }));
+}
+
+const { tag } = Astro.props as { tag: string };
+const tutorials = (await getPublishedTutorials()).filter((tutorial) => tutorial.data.tags.includes(tag));
+---
+
+<BaseLayout title={`标签：${tag}`} description={`Rust Tutorial 标签：${tag}`}>
+  <main class="page">
+    <h1 class="page-title">标签：{tag}</h1>
+    <div class="grid">
+      {
+        tutorials.map((tutorial) => (
+          <article class="card">
+            <div class="meta">
+              <span class="pill">{tutorial.data.level}</span>
+              <span class="pill">{tutorial.data.estimatedMinutes} 分钟</span>
+            </div>
+            <h2>
+              <a href={tutorialPath(tutorial)} data-read-id={tutorial.id}>
+                {tutorial.data.title}
+              </a>
+            </h2>
+            <p>{tutorial.data.description}</p>
+          </article>
+        ))
+      }
+    </div>
+  </main>
+</BaseLayout>

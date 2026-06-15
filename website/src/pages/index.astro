@@ -1,0 +1,95 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getPublishedTutorials, groupTutorialsByStage, tutorialPath } from "../utils/tutorials";
+
+const tutorials = await getPublishedTutorials();
+const groups = groupTutorialsByStage(tutorials);
+const latest = [...tutorials]
+  .sort((left, right) => right.data.updatedAt.localeCompare(left.data.updatedAt) || right.data.order - left.data.order)
+  .slice(0, 4);
+const firstTutorial = tutorials[0];
+---
+
+<BaseLayout>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <h1>Rust Tutorial</h1>
+        <p class="lead">
+          一条中文、示例驱动、可持续维护的 Rust 学习路线。章节来自 MDX，示例来自
+          <code>examples/</code>，每一步都能在本地验证。
+        </p>
+        <div class="toolbar">
+          {firstTutorial && <a class="button button--primary" href={tutorialPath(firstTutorial)}>开始学习</a>}
+          <a class="button" href="/roadmap/">查看路线</a>
+          <a class="button" href="/examples/">运行示例</a>
+          <a class="button" href="/roadmap/" data-last-read>继续阅读</a>
+        </div>
+      </div>
+      <div class="stats" aria-label="站点状态">
+        <div class="stat">
+          <strong>{tutorials.length}</strong>
+          <span>已发布章节</span>
+        </div>
+        <div class="stat">
+          <strong>{groups.length}</strong>
+          <span>已覆盖阶段</span>
+        </div>
+        <div class="stat">
+          <strong data-progress-count>0</strong>
+          <span>本机已完成</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>最近章节</h2>
+      <div class="grid">
+        {
+          latest.map((tutorial) => (
+            <article class="card">
+              <div class="meta">
+                <span class="pill">{tutorial.data.level}</span>
+                <span class="pill">{tutorial.data.estimatedMinutes} 分钟</span>
+              </div>
+              <h3>
+                <a href={tutorialPath(tutorial)} data-read-id={tutorial.id}>
+                  {tutorial.data.title}
+                </a>
+              </h3>
+              <p>{tutorial.data.description}</p>
+              <div class="tags">
+                {tutorial.data.tags.map((tag) => (
+                  <a class="tag" href={`/tags/${encodeURIComponent(tag)}/`}>
+                    {tag}
+                  </a>
+                ))}
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>当前路线</h2>
+      {
+        groups.map((group) => (
+          <div class="route-stage">
+            <h3>{group.label}</h3>
+            <ol class="route-list">
+              {group.tutorials.map((tutorial) => (
+                <li class="route-item">
+                  <a href={tutorialPath(tutorial)} data-read-id={tutorial.id} data-progress-id={tutorial.id}>
+                    {tutorial.data.title}
+                  </a>
+                  <span class="pill">{tutorial.data.estimatedMinutes} 分钟</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ))
+      }
+    </section>
+  </main>
+</BaseLayout>

@@ -1,0 +1,34 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getPublishedTutorials, tutorialPath } from "../utils/tutorials";
+
+const tutorials = await getPublishedTutorials();
+const examples = tutorials.filter((tutorial) => tutorial.data.exampleDir);
+---
+
+<BaseLayout title="示例索引" description="Rust Tutorial 的可运行示例列表。">
+  <main class="page">
+    <h1 class="page-title">示例索引</h1>
+    <p class="lead">每个示例都是 `examples/` workspace 中的 Cargo package，可用统一脚本校验。</p>
+    <div class="grid">
+      {
+        examples.map((tutorial) => (
+          <article class="card" id={tutorial.data.exampleDir}>
+            <div class="meta">
+              <span class="pill">{tutorial.data.exampleDir}</span>
+              <span class="pill">{tutorial.data.estimatedMinutes} 分钟</span>
+            </div>
+            <h2>
+              <a href={tutorialPath(tutorial)} data-read-id={tutorial.id}>
+                {tutorial.data.title}
+              </a>
+            </h2>
+            <p>{tutorial.data.description}</p>
+            <pre class="example-cmd"><code>cd examples
+cargo run -p rt_{tutorial.data.exampleDir}</code></pre>
+          </article>
+        ))
+      }
+    </div>
+  </main>
+</BaseLayout>

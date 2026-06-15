@@ -1,0 +1,115 @@
+---
+import { render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import {
+  getPublishedTutorials,
+  getTutorialNeighbors,
+  stageLabels,
+  tutorialPath,
+  type Tutorial,
+} from "../../utils/tutorials";
+
+export async function getStaticPaths() {
+  const tutorials = await getPublishedTutorials();
+  return tutorials.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry, tutorials },
+  }));
+}
+
+const { entry, tutorials } = Astro.props as { entry: Tutorial; tutorials: Tutorial[] };
+const { Content, headings } = await render(entry);
+const neighbors = getTutorialNeighbors(tutorials, entry.id);
+const examplePath = entry.data.exampleDir ? `/examples/#${entry.data.exampleDir}` : undefined;
+---
+
+<BaseLayout title={entry.data.title} description={entry.data.description}>
+  <main class="page tutorial-layout">
+    <aside class="sidebar" aria-label="章节导航">
+      <nav>
+        {
+          tutorials.map((tutorial) => (
+            <a
+              href={tutorialPath(tutorial)}
+              aria-current={tutorial.id === entry.id ? "page" : undefined}
+              data-progress-id={tutorial.id}
+              data-read-id={tutorial.id}
+            >
+              {tutorial.data.title}
+            </a>
+          ))
+        }
+      </nav>
+    </aside>
+
+    <article
+      class="article"
+      data-pagefind-body
+      data-pagefind-filter-stage={stageLabels[entry.data.stage]}
+      data-pagefind-filter-level={entry.data.level}
+    >
+      <header class="article-header">
+        <div class="meta">
+          <span class="pill">{stageLabels[entry.data.stage]}</span>
+          <span class="pill">{entry.data.level}</span>
+          <span class="pill">{entry.data.estimatedMinutes} 分钟</span>
+          <span class="pill">更新 {entry.data.updatedAt}</span>
+        </div>
+        <h1>{entry.data.title}</h1>
+        <p class="lead">{entry.data.description}</p>
+        <div class="tags">
+          {
+            entry.data.tags.map((tag) => (
+              <a class="tag" href={`/tags/${encodeURIComponent(tag)}/`}>
+                {tag}
+              </a>
+            ))
+          }
+        </div>
+      </header>
+
+      <div class="article-content">
+        <Content />
+      </div>
+
+      <footer class="article-footer">
+        <div class="toolbar">
+          <button class="button button--primary" type="button" data-complete-id={entry.id}>标记完成</button>
+          {entry.data.exampleDir && <a class="button" href={examplePath}>示例目录</a>}
+        </div>
+        <nav class="pager" aria-label="章节翻页">
+          <div>
+            {
+              neighbors.previous && (
+                <a href={tutorialPath(neighbors.previous)} data-read-id={neighbors.previous.id}>
+                  <span>上一篇</span>
+                  {neighbors.previous.data.title}
+                </a>
+              )
+            }
+          </div>
+          <div>
+            {
+              neighbors.next && (
+                <a href={tutorialPath(neighbors.next)} data-read-id={neighbors.next.id}>
+                  <span>下一篇</span>
+                  {neighbors.next.data.title}
+                </a>
+              )
+            }
+          </div>
+        </nav>
+      </footer>
+    </article>
+
+    <aside class="toc" aria-label="本页目录">
+      <nav>
+        {
+          headings
+            .filter((heading) => heading.depth === 2 || heading.depth === 3)
+            .map((heading) => <a href={`#${heading.slug}`}>{heading.text}</a>)
+        }
+      </nav>
+    </aside>
+  </main>
+</BaseLayout>

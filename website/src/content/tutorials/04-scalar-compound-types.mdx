@@ -1,0 +1,77 @@
+---
+title: "标量类型与复合类型"
+description: "认识整数、浮点、bool、char、tuple 和 array。"
+stage: "basic"
+order: 40
+level: "beginner"
+estimatedMinutes: 30
+tags: ["基础语法", "类型系统"]
+rustConcepts: ["i32", "f64", "bool", "char", "tuple", "array"]
+prerequisites: ["03-variables"]
+exampleDir: "03_scalar_compound_types"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 标量类型与复合类型
+
+## 你会学到什么
+
+- scalar type（标量类型）表示单个值。
+- compound type（复合类型）把多个值组合在一起。
+- array 长度是类型的一部分。
+
+## 最小示例
+
+```rust
+let version: u32 = 2024;
+let ratio: f64 = 0.85;
+let passed: bool = true;
+let symbol: char = 'R';
+
+let point: (i32, i32) = (3, 5);
+let scores: [u32; 3] = [80, 90, 100];
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_03_scalar_compound_types
+cargo test -p rt_03_scalar_compound_types
+```
+
+## 代码讲解
+
+整数类型可以有符号，也可以无符号，例如 `i32` 和 `u32`。浮点类型常用 `f64`。
+
+tuple 可以组合不同类型，array 要求元素类型一致且长度固定：
+
+```rust
+let profile = ("Rust", 2024, true);
+let levels = ["beginner", "intermediate", "advanced"];
+```
+
+## 常见错误
+
+array 的长度不同就是不同类型：
+
+```rust
+let a: [u8; 3] = [1, 2, 3];
+let b: [u8; 4] = [1, 2, 3, 4];
+```
+
+`a` 和 `b` 不能直接赋给同一个固定类型变量。
+
+## 练习
+
+- 新增一个 tuple 表示章节标题和预计分钟数。
+- 新增一个 array 存储三个标签。
+
+## 小结
+
+基础类型决定了值能做什么操作，也决定了函数签名如何表达约束。
+
+## 下一步
+
+下一章学习函数、参数和返回值。

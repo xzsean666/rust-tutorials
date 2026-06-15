@@ -1,0 +1,8 @@
+target/
+
+website/.astro/
+website/dist/
+website/node_modules/
+
+.DS_Store
+*.log

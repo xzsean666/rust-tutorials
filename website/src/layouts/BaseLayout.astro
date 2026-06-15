@@ -1,0 +1,166 @@
+---
+import "../styles/global.css";
+
+type Props = {
+  title?: string;
+  description?: string;
+};
+
+const {
+  title,
+  description = "中文 Rust 学习路线，配套可运行示例和静态教程网站。",
+} = Astro.props;
+
+const pageTitle = title ? `${title} | Rust Tutorial` : "Rust Tutorial";
+const currentPath = Astro.url.pathname;
+
+const links = [
+  { href: "/", label: "首页" },
+  { href: "/roadmap/", label: "路线" },
+  { href: "/examples/", label: "示例" },
+  { href: "/tags/", label: "标签" },
+  { href: "/search/", label: "搜索" },
+  { href: "/about/", label: "关于" },
+];
+
+function isActive(href: string) {
+  return href === "/" ? currentPath === "/" : currentPath.startsWith(href);
+}
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{pageTitle}</title>
+    <script is:inline>
+      (() => {
+        const key = "rustTutorialProgress:v1";
+        const media = window.matchMedia("(prefers-color-scheme: dark)");
+        const read = () => {
+          try {
+            return JSON.parse(localStorage.getItem(key) || "{}");
+          } catch {
+            return {};
+          }
+        };
+        const state = read();
+        const theme = state.theme || "system";
+        const resolved = theme === "system" ? (media.matches ? "dark" : "light") : theme;
+        document.documentElement.dataset.theme = resolved;
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="site-header">
+        <div class="site-header__inner">
+          <a class="brand" href="/">
+            <span class="brand__mark">R</span>
+            <span>Rust Tutorial</span>
+          </a>
+          <nav class="nav" aria-label="主导航">
+            {
+              links.map((link) => (
+                <a href={link.href} aria-current={isActive(link.href) ? "page" : undefined}>
+                  {link.label}
+                </a>
+              ))
+            }
+            <button class="theme-button" type="button" data-theme-toggle aria-label="切换主题">
+              ◐
+            </button>
+          </nav>
+        </div>
+      </header>
+      <slot />
+      <footer class="site-footer">
+        <div class="site-footer__inner">
+          Rust Tutorial 使用 Astro、MDX、Pagefind 和可验证 Rust 示例构建。
+        </div>
+      </footer>
+    </div>
+    <script is:inline>
+      (() => {
+        const key = "rustTutorialProgress:v1";
+        const media = window.matchMedia("(prefers-color-scheme: dark)");
+        const defaultState = {
+          version: 1,
+          completed: [],
+          lastRead: "",
+          updatedAt: new Date().toISOString(),
+          theme: "system",
+          fontScale: 1,
+        };
+        const read = () => {
+          try {
+            return { ...defaultState, ...JSON.parse(localStorage.getItem(key) || "{}") };
+          } catch {
+            return { ...defaultState };
+          }
+        };
+        const write = (state) => {
+          localStorage.setItem(key, JSON.stringify({ ...state, updatedAt: new Date().toISOString() }));
+        };
+        const resolveTheme = (theme) => (theme === "system" ? (media.matches ? "dark" : "light") : theme);
+        const applyTheme = (theme) => {
+          document.documentElement.dataset.theme = resolveTheme(theme);
+        };
+        const updateProgressUi = () => {
+          const state = read();
+          const completed = new Set(state.completed || []);
+          document.querySelectorAll("[data-progress-id]").forEach((node) => {
+            const id = node.getAttribute("data-progress-id");
+            node.setAttribute("data-completed", completed.has(id) ? "true" : "false");
+          });
+          document.querySelectorAll("[data-complete-id]").forEach((button) => {
+            const id = button.getAttribute("data-complete-id");
+            button.textContent = completed.has(id) ? "已完成" : "标记完成";
+            button.setAttribute("aria-pressed", completed.has(id) ? "true" : "false");
+          });
+          document.querySelectorAll("[data-progress-count]").forEach((node) => {
+            node.textContent = String(completed.size);
+          });
+          document.querySelectorAll("[data-last-read]").forEach((node) => {
+            node.setAttribute("href", state.lastRead ? `/tutorials/${state.lastRead}/` : "/roadmap/");
+          });
+        };
+
+        let state = read();
+        applyTheme(state.theme);
+        media.addEventListener("change", () => applyTheme(read().theme));
+
+        document.querySelector("[data-theme-toggle]")?.addEventListener("click", () => {
+          const current = read();
+          const next = current.theme === "light" ? "dark" : current.theme === "dark" ? "system" : "light";
+          write({ ...current, theme: next });
+          applyTheme(next);
+        });
+
+        document.querySelectorAll("[data-complete-id]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const id = button.getAttribute("data-complete-id");
+            const current = read();
+            const completed = new Set(current.completed || []);
+            completed.has(id) ? completed.delete(id) : completed.add(id);
+            write({ ...current, completed: Array.from(completed), lastRead: id });
+            updateProgressUi();
+          });
+        });
+
+        document.querySelectorAll("[data-read-id]").forEach((node) => {
+          node.addEventListener("click", () => {
+            const id = node.getAttribute("data-read-id");
+            if (!id) return;
+            const current = read();
+            write({ ...current, lastRead: id });
+          });
+        });
+
+        updateProgressUi();
+      })();
+    </script>
+  </body>
+</html>
