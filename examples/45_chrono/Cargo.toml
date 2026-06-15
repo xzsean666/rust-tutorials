@@ -1,0 +1,8 @@
+[package]
+name = "rt_45_chrono"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = "0.4"

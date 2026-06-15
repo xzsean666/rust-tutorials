@@ -39,6 +39,21 @@ cargo run -p rt_13_collections
 cargo test -p rt_13_collections
 ```
 
+## 代码组织
+
+本示例按集合类型拆成多个文件：库 crate（`lib.rs`）声明并重导出各模块，`main.rs` 只负责调用与演示输出。
+
+```text
+src/
+├── lib.rs       # mod 声明 + pub use 重导出
+├── vectors.rs   # Vec：summarize / passing_sorted，以及 Score 结构体
+├── strings.rs   # String：format_scores
+├── maps.rs      # HashMap：word_count / char_frequency；HashSet：sorted_unique / common_count
+└── main.rs      # 精简入口：use rt_13_collections::...; 运行演示
+```
+
+每个模块的单元测试就放在各自文件的 `#[cfg(test)]` 内，便于就近维护。
+
 ## 代码讲解
 
 示例围绕“成绩”这个小场景，把四种集合串起来。下方完整源码已自动嵌入，这里只点出关键之处。

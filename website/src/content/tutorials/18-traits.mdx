@@ -45,6 +45,22 @@ cargo run -p rt_17_traits
 cargo test -p rt_17_traits
 ```
 
+## 代码组织
+
+本章示例按职责拆成了多个文件，更贴近真实项目的组织方式：
+
+```text
+17_traits/
+├── Cargo.toml
+└── src/
+    ├── lib.rs      # mod 声明 + pub use 重导出 + 库级文档
+    ├── summary.rs  # Summary trait、Article/Tweet 及操作它们的函数
+    ├── shape.rs    # Shape trait、Circle/Rectangle、Display 实现及相关函数
+    └── main.rs     # 瘦入口：use 库里的类型，跑一遍演示
+```
+
+每个模块都带有自己的单元测试（`#[cfg(test)] mod tests`），测试就近放在它所覆盖的代码旁边。注意调用 trait 方法时，需要把对应的 trait（如 `Summary`）引入作用域。
+
 ## 代码讲解
 
 ### 为多个类型实现同一个 trait

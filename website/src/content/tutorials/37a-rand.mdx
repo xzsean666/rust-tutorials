@@ -1,0 +1,187 @@
+---
+title: "引用第三方包：用 rand 生成随机数"
+description: "学会在 Cargo.toml 添加依赖，并用 rand 生成随机数、骰子与随机密码。"
+stage: "ecosystem"
+order: 372
+level: "intermediate"
+estimatedMinutes: 20
+tags: ["生态库", "依赖", "rand", "随机数"]
+rustConcepts: ["dependencies", "Cargo.toml", "crates.io", "rand"]
+prerequisites: ["02-cargo-project"]
+exampleDir: "44_rand"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 引用第三方包：用 rand 生成随机数
+
+## 你会学到什么
+
+- 如何在 `Cargo.toml` 里声明一个第三方依赖，或用 `cargo add` 自动添加。
+- 版本号 `"0.9"` / `"1"` 的语义化版本（semver）含义。
+- 什么是 features（特性开关），以及在哪里查依赖的文档。
+- 用 `rand` 生成范围随机数、布尔、浮点数。
+- 从切片里随机挑元素（`choose`）来生成随机密码。
+- 给「带随机性的函数」写测试：断言**性质**而不是具体值。
+
+标准库没有内置随机数生成器，随机数在 Rust 生态里由社区维护的 `rand`
+包提供。这一章我们就以 `rand` 为例，把「引用第三方包」这件事走一遍。
+
+## 如何引用第三方包
+
+Rust 的包叫 **crate**，公共仓库是 [crates.io](https://crates.io)。引用一个包分三步：
+
+**1. 声明依赖。** 在项目的 `Cargo.toml` 里加一行：
+
+```toml
+[dependencies]
+rand = "0.9"
+```
+
+也可以让 Cargo 帮你写，它会自动填上当前最新的兼容版本：
+
+```bash
+cargo add rand
+```
+
+**2. 版本号是什么意思（semver）。** crates.io 上的包遵循「语义化版本」
+`主版本.次版本.修订号`。`Cargo.toml` 里写的是一个**兼容范围**，不是某个精确版本：
+
+- `"1"` 等价于 `"^1"`，表示「`>=1.0.0` 且 `<2.0.0`」——任何 1.x 都行。
+- `"0.9"` 表示「`>=0.9.0` 且 `<0.10.0`」。注意 0.x 阶段，**次版本**被当作
+  破坏性边界，所以 `0.9` 不会自动升到 `0.10`。
+- 具体锁定到哪个版本，记录在 `Cargo.lock` 里（提交它能保证团队/CI 构建一致）。
+
+**3. features（特性开关）。** 很多包把可选功能拆成 feature，按需开启以减小体积、
+缩短编译时间。开启方式：
+
+```toml
+[dependencies]
+rand = { version = "0.9", features = ["small_rng"] }
+```
+
+`rand` 默认 feature 已经够用，本章不需要额外开启。
+
+**去哪查文档？** [docs.rs/rand](https://docs.rs/rand) 是按版本自动生成的 API 文档，
+crates.io 的包页面则有简介、版本历史和 feature 列表。**遇到 API 不会用，先查 docs.rs。**
+
+> rand 在 0.9 改了不少名字。如果你在网上看到 `thread_rng()` / `gen_range()` /
+> `gen()`，那是 0.8 的旧写法，在 0.9 里已弃用。本章用的是新名字。
+
+## 文件结构
+
+本例没有把代码全塞进 `main.rs`，而是拆成一个库 + 一个二进制：
+
+```text
+44_rand/
+├── Cargo.toml        # [dependencies] 里声明 rand = "0.9"
+└── src/
+    ├── lib.rs        # 模块声明 + 重新导出
+    ├── dice.rs       # 掷骰子：范围随机数
+    ├── password.rs   # 随机密码：从字符集里挑字符
+    └── main.rs       # 瘦 main：use 本库，跑个小演示
+```
+
+`lib.rs` 用 `pub mod` 声明子模块，再 `pub use` 把常用函数提到 crate 根，
+这样 `main.rs` 只需 `use rt_44_rand::{roll_die, generate_password};`。
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_44_rand
+cargo test -p rt_44_rand
+```
+
+## 代码讲解
+
+### 拿到一个 RNG
+
+所有随机操作都从一个随机数生成器（RNG）开始：
+
+```rust
+use rand::Rng;            // random* 方法都在这个 trait 上
+
+let mut rng = rand::rng(); // 线程本地 RNG，0.9 的写法
+```
+
+`rand::rng()` 返回一个开箱即用、自动播种的 RNG。`random_range` 等方法定义在
+`Rng` trait 上，所以必须先 `use rand::Rng;`，否则编译器会说「方法不存在」。
+
+### 掷骰子：范围随机数
+
+`dice.rs` 用闭区间 `1..=6` 模拟六面骰：
+
+```rust
+pub fn roll_die() -> u8 {
+    let mut rng = rand::rng();
+    rng.random_range(1..=6) // 两端都能取到
+}
+```
+
+`random_range` 接受任意区间。`roll_n` 用迭代器连掷多次，`sum_n` 把点数求和。
+其它常见随机值：`rng.random::<f64>()` 给 `[0, 1)` 浮点，`rng.random_bool(0.5)`
+按概率给布尔。
+
+### 随机密码：从切片里挑元素
+
+`password.rs` 准备一个字符集，反复随机挑字符拼成密码：
+
+```rust
+use rand::seq::IndexedRandom; // choose 来自这个 trait
+
+let &byte = CHARSET.choose(&mut rng).expect("字符集不应为空");
+```
+
+`choose` 是切片上的方法，但它来自 `IndexedRandom` trait——这是生态库很常见的模式：
+**功能挂在 trait 上，得先 `use` 那个 trait 才能用**。`choose` 返回 `Option<&T>`
+（空切片会得到 `None`），`CHARSET` 非空所以直接 `expect`。
+
+> 想随机打乱一个 `Vec`？用 `use rand::seq::SliceRandom;` 然后 `v.shuffle(&mut rng)`。
+
+### 给随机函数写测试
+
+随机输出无法断言具体值，但可以断言**性质**。骰子点数必落在 `1..=6`，
+密码长度必等于请求长度、且只含字符集里的字符：
+
+```rust
+#[test]
+fn roll_die_in_range() {
+    for _ in 0..1000 {
+        assert!((1..=6).contains(&roll_die()));
+    }
+}
+```
+
+多跑几次循环，能更可靠地覆盖到边界。
+
+## 常见错误
+
+调用 `random_range` 却忘了 `use rand::Rng;`：
+
+```text
+error[E0599]: no method named `random_range` found for struct `ThreadRng`
+```
+
+`random*` 方法在 `Rng` trait 上、`choose` 在 `IndexedRandom` 上、`shuffle` 在
+`SliceRandom` 上。**方法找不到时，先想想是不是缺了对应 trait 的 `use`。**
+
+另一个坑是照抄旧教程的 `thread_rng()` / `gen_range()`：在 0.9 下会触发弃用警告，
+而本仓库以 `-D warnings` 构建，警告即报错。
+
+## 练习
+
+- 给 `dice` 加一个 `roll_until_six() -> u32`：一直掷直到掷出 6，返回掷的次数。
+- 给 `password` 加一个参数，允许调用方传入自定义字符集（比如只含数字的 PIN）。
+- 用 `rng.random_bool(p)` 写一个「按概率返回 true」的函数，并为它写性质测试
+  （提示：`p = 0.0` 必为 false，`p = 1.0` 必为 true）。
+
+## 小结
+
+引用第三方包就三步：在 `[dependencies]` 声明、`use` 进来、调用 API；版本号是 semver
+兼容范围，可选功能靠 features 开启，文档去 docs.rs 查。`rand` 0.9 的入口是
+`rand::rng()`，随机方法分布在 `Rng` / `IndexedRandom` / `SliceRandom` 等 trait 上。
+
+## 下一步
+
+下一章我们再引用一个常用包 `chrono`，学习日期与时间的处理。

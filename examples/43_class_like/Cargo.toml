@@ -1,0 +1,5 @@
+[package]
+name = "rt_43_class_like"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true

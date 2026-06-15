@@ -1,0 +1,159 @@
+---
+title: "用 regex 处理文本"
+description: "用 regex 做匹配、查找、捕获组与替换，从文本里提取结构化信息。"
+stage: "ecosystem"
+order: 376
+level: "intermediate"
+estimatedMinutes: 20
+tags: ["生态库", "regex", "正则", "文本处理"]
+rustConcepts: ["regex", "captures", "named groups", "replace_all"]
+prerequisites: ["37a-rand"]
+exampleDir: "46_regex"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 用 regex 处理文本
+
+## 你会学到什么
+
+- 用 `Regex::new` 编译一个正则模式，再去匹配文本。
+- `is_match` / `find` / `find_iter`：判断、查找第一个、查找全部。
+- 捕获组与**命名组** `(?<name>...)`：把匹配到的片段拆成结构化字段。
+- `replace_all`：把所有匹配批量替换，常用于脱敏、清洗。
+
+`regex` 是 Rust 生态里处理文本的主力库。它不支持回溯，但换来了**线性时间**的匹配保证，正则再复杂也不会把程序拖垮。
+
+## 最小示例
+
+```rust
+use regex::Regex;
+
+let re = Regex::new(r"\d+").unwrap(); // 一个或多个数字
+assert!(re.is_match("订单 42"));
+assert_eq!(re.find("订单 42").unwrap().as_str(), "42");
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_46_regex
+cargo test -p rt_46_regex
+```
+
+依赖：
+
+```toml
+[dependencies]
+regex = "1"
+```
+
+## 文件结构
+
+本章是一个多文件示例，按职责拆成两个模块：
+
+```text
+46_regex/
+├── src/
+│   ├── lib.rs       # mod 声明 + pub use 重新导出
+│   ├── matching.rs  # is_match / find / find_iter
+│   ├── captures.rs  # 捕获组 / 命名组 / replace_all
+│   └── main.rs      # 薄壳：调用库并打印
+└── README.md
+```
+
+`lib.rs` 把两个模块的常用函数 `pub use` 出来，`main.rs` 只写 `use rt_46_regex::...;` 就能调用。完整源码在页面下方自动嵌入，这里只讲思路。
+
+## 代码讲解
+
+### 匹配与查找（matching.rs）
+
+正则用起来永远是固定三步：**编译模式 → 匹配文本 → 读结果**。
+
+`is_email` 用 `is_match` 只回答「匹不匹配」。它的模式拆开看很直观：
+
+```rust
+let re = Regex::new(r"^[\w.+-]+@[\w-]+(?:\.[\w-]+)+$").unwrap();
+re.is_match(text)
+```
+
+`^` 和 `$` 把匹配**锚定**到整行，否则「一句话里夹着一个邮箱」也会算通过。`(?:...)` 是**非捕获组**——只想分组、不想保存内容时用它，比普通 `(...)` 更省。
+
+查找数字时，`find` 返回第一个匹配（`Option<Match>`），`find_iter` 迭代出全部：
+
+```rust
+re.find_iter(text)
+    .map(|m| m.as_str().parse().unwrap())
+    .collect()
+```
+
+`m.as_str()` 拿到匹配到的子串。因为 `\d+` 保证是纯数字，`parse` 才能放心 `unwrap`。
+
+### 捕获组与命名组（captures.rs）
+
+光知道「匹配上了」往往不够，我们还想把片段**拆出来**。`captures` 返回一次匹配里的各个组：
+
+```rust
+let re = Regex::new(r"^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$").unwrap();
+let caps = re.captures("2026-06-15")?;
+let year = caps.name("year").unwrap().as_str(); // "2026"
+```
+
+`\d{4}` 是「恰好 4 位数字」。`(?<year>...)` 给组起了名字，之后用 `caps.name("year")` 按名字取，比按序号 `caps[1]` 更不容易记错位置——这正是命名组的价值。
+
+### 批量替换（captures.rs）
+
+`replace_all` 把**每一处**匹配都换掉，还能在替换串里引用捕获组，做手机号打码再合适不过：
+
+```rust
+let re = Regex::new(r"(\d{3})\d{4}(\d{4})").unwrap();
+re.replace_all(text, "${1}****${2}").into_owned()
+```
+
+前 3 位、后 4 位各进一个组，中间 4 位不进组、直接被换成 `****`。替换串里的 `${1}`、`${2}` 引用第 1、第 2 组。写 `${1}` 而不是 `$1`，是为了避免 `$1****` 被误读成名为 `1****` 的组。`replace_all` 返回 `Cow<str>`（可能借用、可能新建），`into_owned` 把它转成 `String`。
+
+## 常见错误
+
+**忘了用原始字符串。** 正则里全是反斜杠，普通字符串会把 `\d` 当成转义序列：
+
+```rust
+let re = Regex::new("\d+");  // ❌ 编译报错：未知转义 \d
+let re = Regex::new(r"\d+"); // ✅ 原始字符串 r"..."，反斜杠原样保留
+```
+
+养成习惯：模式一律用 `r"..."` 包裹。
+
+**在循环里反复编译同一个正则。** `Regex::new` 要把模式解析、编译成状态机，开销不小。下面这样写，每次循环都重编译一遍：
+
+```rust
+for line in lines {
+    let re = Regex::new(r"\d+").unwrap(); // ❌ 热路径里重复编译
+    // ...
+}
+```
+
+正确做法是**编译一次、反复使用**。真实项目里常用 `std::sync::LazyLock`（或 `once_cell::sync::Lazy`）把它放进静态变量：
+
+```rust
+use std::sync::LazyLock;
+use regex::Regex;
+
+static NUM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\d+").unwrap());
+```
+
+本章示例为了聚焦 API，在每个函数里直接 `Regex::new`；你在自己的代码里记得把它提到循环外。
+
+## 练习
+
+- 给 `parse_date` 加一个校验：月份超过 12 时返回 `None`。
+- 写一个函数，用 `replace_all` 把文本里所有连续空白压成单个空格。
+- 用命名组解析 `key=value` 形式的配置行，返回 `(键, 值)`。
+
+## 小结
+
+`regex` 的用法可以浓缩成一句话：**编译模式、匹配文本、读出结果**。`is_match` 判断、`find`/`find_iter` 查找、`captures` 配合命名组提取、`replace_all` 批量改写——四件套覆盖了绝大多数文本处理需求。
+
+## 下一步
+
+文本之外，数据更多时候是「一串值」。下一章学 itertools，给迭代器加上分组、去重、笛卡尔积等趁手的组合子。

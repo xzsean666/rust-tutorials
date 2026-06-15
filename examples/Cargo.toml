@@ -44,6 +44,11 @@ members = [
   "40_unsafe",
   "41_ffi",
   "42_todo_cli",
+  "43_class_like",
+  "44_rand",
+  "45_chrono",
+  "46_regex",
+  "47_itertools",
 ]
 
 [workspace.package]

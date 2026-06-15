@@ -1,0 +1,191 @@
+---
+title: "像 class 一样思考:Rust 的面向对象"
+description: "Rust 没有 class，却能用 struct + impl + trait 表达封装、构造、接口、多态与继承。"
+stage: "generics"
+order: 195
+level: "intermediate"
+estimatedMinutes: 30
+tags: ["面向对象", "trait", "struct", "多态"]
+rustConcepts: ["struct", "impl", "trait", "associated function", "dynamic dispatch", "composition"]
+prerequisites: ["18-traits", "19-trait-objects"]
+exampleDir: "43_class_like"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 像 class 一样思考:Rust 的面向对象
+
+## 你会学到什么
+
+从 Java / C++ / Python / TypeScript 转过来的人,最常问的一句是:**“Rust 的 class 在哪?”** 答案是:Rust 没有 `class` 关键字,但「类」的每一项能力都能用 `struct` + `impl` + `trait` 组合出来,而且拆得更清楚:
+
+- **数据**放进 `struct`(字段默认私有,天然封装)。
+- **行为**放进 `impl` 块(方法 / 构造器 / 静态成员)。
+- **契约**放进 `trait`(接口 + 可选默认实现)。
+- **多态**用泛型(静态分发)或 `dyn`(动态分发)。
+- **复用**用「组合 + 委托」,而不是继承。
+
+## 概念对照表
+
+| 其它语言里的概念 | Rust 里的写法 |
+| --- | --- |
+| class 的字段 | `struct` 的字段(默认私有) |
+| class 的方法 | `impl` 块里带 `&self` / `&mut self` 的函数 |
+| 构造函数 `new X()` | 关联函数 `fn new(...) -> Self`(约定名 `new`) |
+| 静态方法 / 静态常量 | 不带 `self` 的关联函数 / 关联常量 `const` |
+| `toString()` | 实现标准库 `Display` |
+| interface / 抽象方法 | `trait` 里没有方法体的方法 |
+| 抽象基类的具体方法 | `trait` 里的**默认方法** |
+| 多态(虚函数) | 泛型 `impl Trait` 或 `Box<dyn Trait>` |
+| 继承(extends) | **组合 + 委托**,或 supertrait 复用契约 |
+| `@dataclass` / 自动 equals | `#[derive(Debug, Clone, PartialEq)]` |
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_43_class_like
+cargo test -p rt_43_class_like
+```
+
+这个示例特意拆成了多个文件,演示真实项目的代码组织(而不是把所有东西塞进一个 `main.rs`):
+
+```text
+src/
+├── lib.rs            // 模块声明 + 对外重新导出
+├── account.rs        // BankAccount:封装、构造器、Display
+├── account_trait.rs  // Account trait:接口 + 默认方法
+├── savings.rs        // SavingsAccount:组合代替继承
+├── polymorphism.rs   // 静态分发 / 动态分发
+└── main.rs           // 仅负责跑演示,use 库里的类型
+```
+
+完整源码已嵌入本页底部,建议对照下面的讲解逐段阅读。
+
+## 代码讲解
+
+### 1. 封装:struct 存数据,impl 放方法
+
+字段不写 `pub` 就是私有的——模块外**拿不到**它,只能通过你提供的方法访问。于是「余额不能为负」这种**不变量**就能被牢牢守住:外部无法直接改 `balance`,只能走 `deposit` / `withdraw`。
+
+```rust
+pub struct BankAccount {
+    owner: String,
+    balance: i64, // 私有:外部不能直接改
+}
+
+impl BankAccount {
+    pub fn balance(&self) -> i64 { self.balance }      // getter:&self 只读
+    pub fn deposit(&mut self, amount: i64) {           // &mut self 可改
+        self.balance += amount;
+    }
+}
+```
+
+`&self`、`&mut self`、`self` 分别对应「只读方法、可变方法、消耗自身的方法」,比其它语言「方法默认都能改对象」更精确。
+
+### 2. 构造器与静态成员:关联函数 + 关联常量
+
+Rust 没有专门的构造函数语法。**不带 `self` 的关联函数**就是构造器,约定叫 `new`;它还能返回 `Result`,把非法对象挡在诞生之前——这是普通构造函数做不到的。
+
+```rust
+impl BankAccount {
+    pub const MIN_OPENING: i64 = 100; // 关联常量 = 静态常量
+
+    pub fn new(owner: &str, opening: i64) -> Result<Self, String> {
+        if opening < Self::MIN_OPENING {
+            return Err(format!("开户金额至少 {} 分", Self::MIN_OPENING));
+        }
+        Ok(Self { owner: owner.to_string(), balance: opening })
+    }
+}
+```
+
+调用时用 `BankAccount::new(...)`、`BankAccount::MIN_OPENING`,就像调用「类的静态成员」。
+
+### 3. toString:实现 Display
+
+不要自己写 `to_string` 方法。实现标准库的 `Display`,就**自动**获得 `{}` 格式化和 `.to_string()`:
+
+```rust
+impl std::fmt::Display for BankAccount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} 的账户:{:.2} 元", self.owner, self.balance as f64 / 100.0)
+    }
+}
+```
+
+### 4. 接口与抽象基类:trait
+
+`trait` 同时扮演「interface」和「带默认实现的抽象基类」。没有方法体的是**必须实现**的抽象方法;有方法体的是**默认方法**,实现者不重写就直接用:
+
+```rust
+pub trait Account {
+    fn balance(&self) -> i64;          // 抽象方法,必须实现
+    fn kind(&self) -> &str;            // 抽象方法,必须实现
+    fn summary(&self) -> String {      // 默认方法,可不重写
+        format!("[{}] 余额 {} 分", self.kind(), self.balance())
+    }
+}
+```
+
+`BankAccount` 实现它时只写两个抽象方法,`summary` 用默认版;`SavingsAccount` 则**重写**(override)了 `summary`。
+
+### 5. 继承怎么办?用组合代替
+
+这是最关键、也最反直觉的一点:**Rust 不能继承 struct**。想复用 `BankAccount`,就把它作为字段「包」进新类型里(组合),再把需要的调用**委托**过去:
+
+```rust
+pub struct SavingsAccount {
+    base: BankAccount, // 组合:拥有一个,而不是“是一个”
+    rate_bps: i64,
+}
+
+impl SavingsAccount {
+    pub fn accrue_interest(&mut self) {                 // 新增能力
+        let interest = self.base.balance() * self.rate_bps / 10_000;
+        self.base.deposit(interest);
+    }
+    pub fn deposit(&mut self, amount: i64) {            // 委托给“父类”
+        self.base.deposit(amount);
+    }
+}
+```
+
+业界共识「组合优于继承」在 Rust 里被直接写进了语言:你不会继承到一堆用不上的方法,也不会被脆弱的基类层级绑死。需要共享**契约**而非实现时,用 supertrait(`trait B: A {}`)即可。
+
+### 6. 多态:静态分发 vs 动态分发
+
+让同一段逻辑作用于不同类型,有两条路:
+
+- **泛型(静态分发)**:`fn f(x: &impl Account)`,编译期为每个具体类型生成专门代码,零运行时开销。
+- **trait 对象(动态分发)**:`Box<dyn Account>`,运行期查虚表,代价是一次间接跳转,好处是能把不同类型装进同一个 `Vec`。
+
+```rust
+fn print_static(acc: &impl Account) { /* 单态化 */ }
+fn total_balance(accounts: &[Box<dyn Account>]) -> i64 {
+    accounts.iter().map(|a| a.balance()).sum()
+}
+```
+
+## 常见错误
+
+- **找 `class` / `extends`**:它们不存在。把「数据 + 行为」拆成 `struct` + `impl`,把「能继承的部分」改成 `trait` + 组合。
+- **想继承 struct 来复用字段**:做不到。用组合(把旧类型当字段)+ 委托,或用 trait 共享行为契约。
+- **给 trait 对象写返回 `Self` 的方法**:`dyn Trait` 要求方法「对象安全」,返回 `Self`、泛型方法都会让 trait 不能做成 `dyn`。需要时改用泛型,或返回 `Box<dyn Trait>`。
+- **自己写 `to_string()`**:实现 `Display` 即可,别重复造轮子;需要调试输出用 `#[derive(Debug)]` + `{:?}`。
+
+## 练习
+
+- 给 `Account` 加一个默认方法 `is_empty(&self) -> bool`(余额为 0),让两个类型都自动获得它。
+- 新增一个 `CheckingAccount`(支票账户,允许小额透支),用组合复用 `BankAccount`,并实现 `Account`,放进同一个 `Vec<Box<dyn Account>>` 里。
+- 把 `print_static` 改写成接收 `Vec<Box<dyn Account>>` 的版本,对比泛型与 trait 对象在「同质集合 vs 异质集合」上的差异。
+- 定义 `trait Taxable: Account {}`(supertrait),只有实现了 `Account` 的类型才能实现它,体会「用 trait 表达契约继承」。
+
+## 小结
+
+Rust 用三件套覆盖了「类」的全部职责:`struct` 管数据与封装,`impl` 管方法与构造,`trait` 管接口与多态;继承则由「组合 + 委托」和 supertrait 取代。拆开之后,封装更严、复用更灵活,也更难写出脆弱的类层级。
+
+## 下一步
+
+掌握了如何用类型和 trait 建模后,下一章进入闭包——把「行为」当作值来传递。

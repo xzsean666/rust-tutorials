@@ -1,0 +1,148 @@
+---
+title: "用 chrono 处理日期与时间"
+description: "用 chrono 解析、格式化日期时间，并做日期加减与差值计算。"
+stage: "ecosystem"
+order: 374
+level: "intermediate"
+estimatedMinutes: 20
+tags: ["生态库", "chrono", "日期时间"]
+rustConcepts: ["chrono", "NaiveDate", "Duration", "parse", "format"]
+prerequisites: ["37a-rand"]
+exampleDir: "45_chrono"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 用 chrono 处理日期与时间
+
+## 你会学到什么
+
+- 为什么处理「日历日期」要用 `chrono` 而不是标准库的 `std::time`。
+- 用 `NaiveDate::parse_from_str` 把字符串解析成日期。
+- 用 `format` 配合格式串把日期格式化成 `2026-06-15` 或 `2026年06月15日`。
+- 用 `chrono::Duration` 做日期加减，以及求两个日期之间相差的天数。
+- 为什么测试要用固定的 `NaiveDate`，而不是 `now()`。
+
+## 为什么用 chrono，而不是 std::time
+
+标准库里有 `std::time::SystemTime` 和 `Duration`，但它们很底层：
+`SystemTime` 只是「距某个纪元的一段时长」，**不懂日历**。它无法回答
+「2026 年 6 月有几天」「6 月 25 日往后 10 天是几号」，也不能解析
+`"2026-06-15"` 这样的字符串，更没有按「年月日」格式化的能力。
+
+`chrono` 在其之上补齐了这些：日历日期、时区、解析与格式化。
+需要给用户展示日期、读写日期字符串、做日历运算时，就用 `chrono`；
+只是想测量「一段代码跑了多久」，那 `std::time::Instant` 就够了。
+
+## 项目结构
+
+这个例子拆成多个文件，方便对照阅读：
+
+```text
+45_chrono/
+├── Cargo.toml
+└── src/
+    ├── lib.rs       // 模块声明 + 重新导出
+    ├── parsing.rs   // 解析与格式化
+    ├── duration.rs  // 日期加减与差值
+    └── main.rs      // 调用库、打印演示
+```
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_45_chrono
+cargo test -p rt_45_chrono
+```
+
+## 代码讲解
+
+### 选 NaiveDate 让结果可复现
+
+`chrono` 有带时区的 `DateTime<Utc>` / `DateTime<Local>`，也有
+**不带时区**的 `NaiveDate` / `NaiveTime` / `NaiveDateTime`。本章统一用
+`NaiveDate`，因为它最简单，而且不依赖系统时钟——这对写测试至关重要：
+`Utc::now()` / `Local::now()` 每次返回的值都不一样，断言无从下手。
+
+构造日期用 `from_ymd_opt`（返回 `Option`，非法日期得到 `None`）：
+
+```rust
+let d = chrono::NaiveDate::from_ymd_opt(2026, 6, 15).unwrap();
+```
+
+> 注意：旧版的 `from_ymd`（不带 `_opt`）已被弃用，会在 panic 时吞掉错误，别再用。
+
+### 解析：字符串 → 日期
+
+`parsing.rs` 里的 `parse_date` 用 `parse_from_str`，第二个参数是格式串：
+
+```rust
+pub fn parse_date(s: &str) -> Result<NaiveDate, chrono::ParseError> {
+    NaiveDate::parse_from_str(s, "%Y-%m-%d")
+}
+```
+
+`%Y` 是四位年、`%m` 两位月、`%d` 两位日。解析**可能失败**（格式不符、
+日期非法如 `2026-02-30`），所以返回 `Result`，由调用方决定怎么处理。
+
+### 格式化：日期 → 字符串
+
+格式化是解析的逆操作，同样用格式串。普通字符（包括汉字）会原样输出：
+
+```rust
+date.format("%Y-%m-%d").to_string()    // "2026-06-15"
+date.format("%Y年%m月%d日").to_string() // "2026年06月15日"
+```
+
+`format` 返回的是一个惰性的「可显示对象」，记得 `.to_string()` 落地成 `String`。
+
+### 日期运算：Duration
+
+`duration.rs` 的核心是 `chrono::Duration`，表示一段时间间隔。
+日期加上一个 `Duration` 得到新日期，跨月、跨年都会自动处理：
+
+```rust
+date + Duration::days(10)  // 6/25 + 10 天，自动跨到 7/5
+date - Duration::days(7)
+```
+
+两个日期相减得到 `Duration`，再用 `num_days()` 取整数天数；
+`to` 在 `from` 之后为正，反之为负：
+
+```rust
+pub fn days_between(from: NaiveDate, to: NaiveDate) -> i64 {
+    (to - from).num_days()
+}
+```
+
+### 测试断言确定的值
+
+因为输入是固定的 `NaiveDate`，测试可以断言**精确结果**，比如
+`days_between(2025-1-1, 2026-1-1) == 365`、跨月加法 `6/25 + 10 == 7/5`。
+`main.rs` 里才用 `Local::now().date_naive()` 展示「今天」，那行输出每天都会变，
+所以它不进测试。
+
+## 常见错误
+
+- 用了弃用的 `NaiveDate::from_ymd` / `and_hms`：在 `-D warnings` 下会直接编译失败，
+  一律换成带 `_opt` 的版本并处理 `Option`。
+- 把 `now()` 写进断言：结果非确定，测试时灵时不灵。测试只用固定日期。
+- 忘了 `parse_from_str` 返回 `Result`：直接当成日期用会编译不过，需要先 `?` 或 `unwrap`。
+
+## 练习
+
+- 给 `parsing` 增加一个解析「日期 + 时间」的函数，用 `NaiveDateTime::parse_from_str`
+  和格式串 `"%Y-%m-%d %H:%M:%S"`。
+- 给 `duration` 增加 `weeks_between`，复用 `days_between` 再除以 7。
+- 试着用 `date.weekday()` 打印某天是星期几，并为它写一个固定输入的测试。
+
+## 小结
+
+`chrono` 把标准库缺失的「日历能力」补齐：解析、格式化、按年月日运算。
+测试时优先用不带时区的 `NaiveDate`，让结果可复现。
+
+## 下一步
+
+文本处理里另一个高频需求是「按模式匹配与提取」。下一章学习用
+`regex` 写正则表达式：[37c-regex]。

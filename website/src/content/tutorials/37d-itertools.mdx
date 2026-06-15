@@ -1,0 +1,130 @@
+---
+title: "用 itertools 增强迭代器"
+description: "用 itertools 的 unique / counts / chunk_by / sorted / join 等扩展标准迭代器。"
+stage: "ecosystem"
+order: 378
+level: "intermediate"
+estimatedMinutes: 20
+tags: ["生态库", "itertools", "迭代器"]
+rustConcepts: ["itertools", "chunk_by", "unique", "counts", "extension trait"]
+prerequisites: ["21-iterators", "37a-rand"]
+exampleDir: "47_itertools"
+draft: false
+updatedAt: "2026-06-15"
+---
+
+# 用 itertools 增强迭代器
+
+## 你会学到什么
+
+- 标准库 `Iterator` 没直接提供、但日常常用的迭代器操作。
+- `itertools` 的几个高频方法：`chunk_by`、`unique`、`counts`、`sorted`、`join`、`cartesian_product`、`chunks`，以及 `izip!` 宏。
+- 「扩展 trait（extension trait）」模式——为什么一个 `use` 就能给已有的迭代器凭空加上新方法。
+- 把第三方能力封装进库模块，上层只管调用。
+
+这一章建立在[迭代器](/tutorials/21-iterators)之上：你已经熟悉 `map`/`filter`/`collect` 的链式风格，`itertools` 只是在同一条链上接更多积木。
+
+## 核心概念：扩展 trait
+
+标准库把迭代器方法定义在 `Iterator` trait 上。`itertools` 没法去修改标准库的源码，它换了个思路：定义自己的 trait `Itertools`，并为**所有**实现了 `Iterator` 的类型一次性实现它：
+
+```rust
+// itertools 内部大致是这样（简化）：
+pub trait Itertools: Iterator {
+    fn unique(self) -> Unique<Self> { /* ... */ }
+    fn counts(self) -> HashMap<Self::Item, usize> { /* ... */ }
+    // ……
+}
+
+impl<T: Iterator> Itertools for T {}
+```
+
+于是只要把这个 trait 带进作用域：
+
+```rust
+use itertools::Itertools;
+```
+
+任何迭代器（`Vec` 的 `.iter()`、`map` 链、`0..n`……）就立刻多出 `.unique()`、`.counts()` 等方法。方法本身没改变原类型，是「调用方导入了 trait 才看得见」——这正是 Rust 里给外部类型扩展行为的标准手法，标准库的 `Iterator`、`Itertools`、`anyhow::Context` 都是这个套路。忘了 `use` 这一行，编译器就会报「方法不存在」，这是最常见的坑。
+
+## 文件结构
+
+示例按用途拆成两个模块，方便对照阅读：
+
+```text
+47_itertools/
+├── Cargo.toml          # 声明 itertools = "0.14"
+└── src/
+    ├── lib.rs          # mod 声明 + pub use 重导出
+    ├── grouping.rs     # 分组与去重：chunk_by / unique / counts
+    ├── combining.rs    # 组合与排列：izip! / sorted / join / cartesian_product / chunks
+    └── main.rs         # 薄壳：调用库函数并打印
+```
+
+`lib.rs` 把两个模块里的函数 `pub use` 出来，`main.rs` 因此能直接 `use rt_47_itertools::run_lengths;`，感知不到底层用了哪个第三方包。
+
+## 运行代码
+
+```bash
+cd examples
+cargo run -p rt_47_itertools
+cargo test -p rt_47_itertools
+```
+
+## 代码讲解
+
+### 分组与去重（grouping.rs）
+
+`chunk_by` 把**相邻且相等**的元素压成一组。它在 0.14 由旧名 `group_by` 改名而来——看老资料时注意这点。要强调的是「相邻」：
+
+```rust
+// [1, 1, 2, 2, 2, 1] -> [(1, 2), (2, 3), (1, 1)]
+for (key, group) in &data.iter().chunk_by(|&&x| x) {
+    out.push((key, group.count()));
+}
+```
+
+末尾那个 `1` 不会和开头的 `1` 合并，因为它们中间隔着 `2`。这跟「先排序再分组」是两回事——`chunk_by` 做的是游程（run-length）切分。注意写法上要 `&...chunk_by(...)`：分组结果是惰性的，必须在持有它引用的期间把每组消费掉。
+
+`unique` 去重但**保留首次出现的顺序**，不像 `HashSet` 那样打乱次序；`counts` 直接把迭代器统计成 `HashMap<值, 次数>`，省掉手写 `entry(..).or_insert(0)` 的样板。
+
+### 组合与排列（combining.rs）
+
+`izip!` 宏一次压缩 3 个以上的迭代器，且产出扁平的 `(a, b, c)` 而不是标准库 `zip` 那种嵌套的 `((a, b), c)`：
+
+```rust
+izip!(names, ages, cities) // -> (name, age, city)
+```
+
+和 `zip` 一样，任一序列耗尽就停止。其余几个方法都很直观：
+
+- `sorted` / `sorted_by_key`：消费迭代器、排好序再交还一个新迭代器，比「`collect` 成 `Vec` 再 `sort`」少写一步，链式风格也更连贯。
+- `join(sep)`：用 `Display` 把元素拼成字符串，自动处理「最后一个不加分隔符」的边界。
+- `cartesian_product`：求两个序列的笛卡尔积，结果长度是两者长度之积，常用于「生成所有组合」。
+- `chunks(n)`：每 `n` 个切一块，最后一块允许不足；和 `chunk_by` 一样是惰性的，要在引用期间收集。
+
+## 常见错误
+
+忘记导入扩展 trait：
+
+```rust
+// ❌ 没有 use itertools::Itertools;
+let v: Vec<_> = data.iter().unique().collect();
+//                          ^^^^^^ 方法不存在
+```
+
+`unique`/`counts`/`sorted` 都挂在 `Itertools` trait 上，必须 `use itertools::Itertools;` 才可见。注意 `izip!` 是宏，需要单独从 `itertools::izip` 导入（或用 `itertools::izip!` 全路径）。
+
+## 练习
+
+- 用 `.tuple_windows()` 计算一个数列里「每对相邻元素之差」。
+- 用 `chunk_by` 把一串单词按首字母分组（提示：先 `sorted_by_key(首字母)`，因为 `chunk_by` 只合并相邻项）。
+- 给 `counts` 的结果排序，找出出现次数最多的元素（提示：`into_iter().max_by_key(|(_, n)| *n)`）。
+
+## 小结
+
+`itertools` 通过扩展 trait，给标准迭代器补上了 `chunk_by`、`unique`、`counts`、`sorted`、`join`、`cartesian_product` 等高频操作。理解「`use` 一个 trait 就能给已有类型加方法」这件事，比记住具体某个方法更有价值——它是 Rust 生态里随处可见的扩展模式。
+
+## 下一步
+
+到这里，「引用第三方包」这一组（`rand`、`chrono`、`regex`、`itertools`）就告一段落了：你已经掌握了声明依赖、`use` 进来、把它封装进自己的库模块这套完整流程。接下来进入 Web 与数据库实战——先看如何用 [axum 写一个 Web 服务](/tutorials/38-axum)，再到 SQLite 做持久化。
